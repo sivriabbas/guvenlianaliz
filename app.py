@@ -47,7 +47,7 @@ INTERESTING_LEAGUES = {
 LIG_ORTALAMA_GOL = 1.35
 DEFAULT_MAX_GOAL_EXPECTANCY, DEFAULT_KEY_PLAYER_IMPACT_MULTIPLIER, BEST_BET_THRESHOLD, H2H_MATCH_LIMIT = 3.0, 0.80, 30.0, 10
 
-# --- YARDIMCI GÖRÜNÜM FONKSİYONLARI ---
+# --- YARDIMCI GÖRÜNÜM FONKSİYONLARII ---
 def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Dict]):
     name_a, name_b = team_names['a'], team_names['b']
     score_a, score_b, probs, confidence, diff = analysis['score_a'], analysis['score_b'], analysis['probs'], analysis['confidence'], analysis['diff']
