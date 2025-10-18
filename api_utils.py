@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# api_utils.pyY
-=======
 # api_utils.py
->>>>>>> 022d0ad2125e10a505d9177179a42170fc80c60f
 
 import requests
 from typing import Optional, Dict, Any, List, Tuple
@@ -10,11 +6,7 @@ from datetime import datetime, date
 import streamlit as st
 
 @st.cache_data(ttl=3600)
-<<<<<<< HEAD
 def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[str, Any]) -> Tuple[Optional[Any], Optional[str]]:
-=======
-def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[str, Any]) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
->>>>>>> 022d0ad2125e10a505d9177179a42170fc80c60f
     headers = {'x-rapidapi-key': api_key, 'x-rapidapi-host': "v3.football.api-sports.io"}
     url = f"{base_url}/{endpoint}"
     try:
@@ -29,10 +21,8 @@ def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[st
     except requests.exceptions.RequestException as req_err:
         return None, f"Bağlantı Hatası: {req_err}"
 
-<<<<<<< HEAD
 @st.cache_data(ttl=86400)
 def get_player_stats(api_key: str, base_url: str, player_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-    """Tek bir oyuncunun sezonluk istatistiklerini çeker."""
     return make_api_request(api_key, base_url, "players", {'id': player_id, 'season': season})
 
 @st.cache_data(ttl=86400)
@@ -77,8 +67,6 @@ def get_fixture_odds(api_key: str, base_url: str, fixture_id: int) -> Tuple[Opti
     params = {'fixture': fixture_id, 'bookmaker': 8, 'bet': 1}
     return make_api_request(api_key, base_url, "odds", params)
 
-=======
->>>>>>> 022d0ad2125e10a505d9177179a42170fc80c60f
 @st.cache_data(ttl=86400) 
 def get_fixture_injuries(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
     return make_api_request(api_key, base_url, "injuries", {'fixture': fixture_id})
@@ -147,11 +135,7 @@ def find_upcoming_fixture(api_key: str, base_url: str, team_a_id: int, team_b_id
 def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[int], selected_date: date) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     all_fixtures, error_messages = [], []
     date_str = selected_date.strftime('%Y-%m-%d')
-<<<<<<< HEAD
     season = selected_date.year if selected_date.month > 6 else selected_date.year -1
-=======
-    season = selected_date.year
->>>>>>> 022d0ad2125e10a505d9177179a42170fc80c60f
     status = 'FT' if selected_date < date.today() else 'NS'
     for league_id in selected_league_ids:
         params = {'date': date_str, 'status': status, 'league': league_id, 'season': season}
