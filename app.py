@@ -1243,6 +1243,77 @@ def main():
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
         authenticator.login()
+        
+        # Şifre/Kullanıcı Adı Unuttum Bölümü
+        st.markdown("---")
+        with st.expander("🔑 Şifre veya Kullanıcı Adı mı Unuttunuz?"):
+            st.markdown("### Bilgilerinizi Güncelleyin")
+            st.info("Mevcut bilgilerinizden en az birini doğru girdiğinizde şifrenizi veya kullanıcı adınızı güncelleyebilirsiniz.")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                reset_username = st.text_input("Mevcut Kullanıcı Adınız", key="reset_username")
+                reset_email = st.text_input("E-posta Adresiniz", key="reset_email")
+            with col2:
+                new_username_reset = st.text_input("Yeni Kullanıcı Adı (opsiyonel)", key="new_username_reset")
+                new_password_reset = st.text_input("Yeni Şifre", type="password", key="new_password_reset")
+                new_password_confirm = st.text_input("Yeni Şifre (Tekrar)", type="password", key="new_password_confirm")
+            
+            if st.button("🔄 Bilgilerimi Güncelle", key="reset_credentials"):
+                if not reset_username and not reset_email:
+                    st.error("Lütfen en az kullanıcı adınızı veya e-postanızı girin.")
+                elif not new_password_reset or not new_password_confirm:
+                    st.error("Lütfen yeni şifrenizi iki kez girin.")
+                elif new_password_reset != new_password_confirm:
+                    st.error("Şifreler eşleşmiyor!")
+                else:
+                    # Kullanıcıyı doğrula
+                    found_user = None
+                    for username, user_info in config['credentials']['usernames'].items():
+                        if reset_username and username == reset_username:
+                            found_user = username
+                            break
+                        elif reset_email and user_info.get('email') == reset_email:
+                            found_user = username
+                            break
+                    
+                    if found_user:
+                        try:
+                            import bcrypt
+                            # Yeni şifreyi hashle
+                            hashed_pw = bcrypt.hashpw(new_password_reset.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                            
+                            # Kullanıcı adını güncelle (eğer girilmişse)
+                            if new_username_reset and new_username_reset != found_user:
+                                # Yeni kullanıcı adıyla yeni entry oluştur
+                                config['credentials']['usernames'][new_username_reset] = config['credentials']['usernames'][found_user].copy()
+                                config['credentials']['usernames'][new_username_reset]['password'] = hashed_pw
+                                # Eski kullanıcıyı sil
+                                del config['credentials']['usernames'][found_user]
+                                updated_username = new_username_reset
+                            else:
+                                # Sadece şifreyi güncelle
+                                config['credentials']['usernames'][found_user]['password'] = hashed_pw
+                                updated_username = found_user
+                            
+                            # config.yaml'e kaydet
+                            with open('config.yaml', 'w', encoding='utf-8') as f:
+                                yaml.dump(config, f, allow_unicode=True)
+                            
+                            st.success(f"✅ Bilgileriniz başarıyla güncellendi! Yeni kullanıcı adınız: **{updated_username}**")
+                            st.info("Lütfen yeni bilgilerinizle giriş yapın.")
+                            
+                            # Sayfayı yenile
+                            import time
+                            time.sleep(2)
+                            st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"Güncelleme sırasında hata oluştu: {e}")
+                    else:
+                        st.error("❌ Girdiğiniz bilgilerle eşleşen bir kullanıcı bulunamadı.")
+        
+        st.markdown("---")
 
     if st.session_state["authentication_status"]:
         username = st.session_state.get('username')
@@ -1269,8 +1340,12 @@ def main():
                         # Bu IP başka bir kullanıcıya ait!
                         st.error(f"⛔ **IP KISITLAMASI:** Bu IP adresi zaten '{assigned_user}' kullanıcısına tanımlı. Aynı IP'den birden fazla hesap kullanılamaz.")
                         st.warning("Lütfen çıkış yapın ve kendi IP adresinizden giriş yapın.")
-                        if st.button("Çıkış Yap"):
+                        if st.button("🚪 Çıkış Yap", key="ip_restriction_logout"):
                             authenticator.logout()
+                            # Session state temizle
+                            for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
+                                if key in st.session_state:
+                                    del st.session_state[key]
                             st.rerun()
                         st.stop()
             except Exception as e:
@@ -1347,7 +1422,15 @@ def main():
             st.sidebar.info(f"Hesap Türü: **{user_tier.capitalize()}**")
             st.sidebar.metric(label="Kalan Günlük API Hakkı", value=f"{remaining_requests} / {user_limit}")
 
-        authenticator.logout('Çıkış Yap', 'sidebar', key='logout_button')
+        # Çıkış butonu - logout sonrası login ekranına dön
+        if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True, key='logout_button_custom'):
+            authenticator.logout()
+            # Session state temizle
+            for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+        
         st.sidebar.markdown("---")
         
         with st.sidebar.expander("⭐ Favori Ligleri Yönet"):
