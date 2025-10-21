@@ -686,25 +686,38 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
     today = date.today()
     
-    # Sadece en popüler 3 ligi kontrol et (API limiti korumak için)
-    popular_ids = [203, 39, 140]  # Süper Lig, Premier League, La Liga
+    # DAHA FAZLA LİG EKLE - sadece 3 lig yetmeyebilir
+    popular_ids = [203, 39, 140, 135, 78, 61]  # Süper Lig, Premier, La Liga, Serie A, Bundesliga, Ligue 1
     
     # Bugünün maçlarını çek - KULLANICI LİMİTİNİ TÜKETME
     fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, popular_ids, today, bypass_limit_check=True)
     
-    if error or not fixtures:
+    if error:
+        print(f"❌ API Hatası: {error}")  # DEBUG
         return []
     
-    # İlk 10 maçı analiz et (API limiti korumak için)
+    if not fixtures:
+        print(f"⚠️ Bugün {len(popular_ids)} popüler ligde maç bulunamadı!")  # DEBUG
+        return []
+    
+    print(f"✅ Bugün {len(fixtures)} maç bulundu, analiz ediliyor...")  # DEBUG
+    
+    # İLK 20 MAÇI ANALİZ ET (daha fazla şans)
     analyzed_fixtures = []
-    for fixture in fixtures[:10]:
+    for idx, fixture in enumerate(fixtures[:20], 1):
         try:
             summary = analyze_fixture_summary(fixture, model_params)
-            if summary and summary['AI Güven Puanı'] >= 65.0:  # Sadece yüksek güvenli tahminler
-                analyzed_fixtures.append(summary)
+            if summary:
+                confidence = summary.get('AI Güven Puanı', 0)
+                print(f"  {idx}. {summary['Ev Sahibi']} vs {summary['Deplasman']}: Güven={confidence}")  # DEBUG
+                if confidence >= 40.0:  # EŞİK DAHA DA DÜŞÜRÜLDÜ: 55 → 40 (her gün tahmin göster)
+                    analyzed_fixtures.append(summary)
+                    print(f"    ✅ EKLENDI (Güven: {confidence})")  # DEBUG
         except Exception as e:
-            # Sessizce devam et (API hatası, veri eksikliği vs.)
+            print(f"  ❌ Hata: {str(e)}")  # DEBUG
             continue
+    
+    print(f"🎯 Toplam {len(analyzed_fixtures)} yüksek güvenli tahmin bulundu!")  # DEBUG
     
     # Güvene göre sırala ve top N'i döndür
     analyzed_fixtures.sort(key=lambda x: x['AI Güven Puanı'], reverse=True)
@@ -732,8 +745,8 @@ def build_home_view(model_params):
     if LEAGUE_LOAD_ERROR:
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
     
-    # 🆕 Günün Top 5 Yüksek Güvenli Tahmini
-    st.subheader("🌟 Günün Top 5 Yüksek Güvenli Tahmini")
+    # 🆕 Günün Top 5 Güvenli Tahmini
+    st.subheader("🌟 Günün Top 5 Güvenli Tahmini")
     
     # Bildirim banner'ı
     top_predictions = []
@@ -743,8 +756,10 @@ def build_home_view(model_params):
     if top_predictions and len(top_predictions) > 0:
         # Uyarı banner'ı
         max_confidence = max(p['AI Güven Puanı'] for p in top_predictions)
-        if max_confidence >= 75.0:
-            st.success(f"🔥 **YÜKSEK GÜVENLİ TAHMİN UYARISI!** Bugün {len(top_predictions)} yüksek güvenli tahmin bulundu! En yüksek güven: {max_confidence:.1f}", icon="⚡")
+        if max_confidence >= 70.0:
+            st.success(f"🔥 **YÜKSEK GÜVENLİ TAHMİN!** Bugün {len(top_predictions)} tahmin bulundu! En yüksek güven: {max_confidence:.1f}%", icon="⚡")
+        elif max_confidence >= 60.0:
+            st.info(f"✅ Bugün {len(top_predictions)} iyi güvenli tahmin bulundu! En yüksek güven: {max_confidence:.1f}%")
         else:
             st.info(f"✅ Bugün için {len(top_predictions)} iyi güvenli tahmin bulundu!")
         
@@ -762,12 +777,12 @@ def build_home_view(model_params):
                     st.metric("Tahmin", pred['Tahmin'], help="Model tahmini")
                     st.metric("2.5 Üst", f"{pred['2.5 ÜST (%)']}%")
                 with col3:
-                    st.metric("Güven", f"{pred['AI Güven Puanı']}", help="AI Güven Skoru", delta="Yüksek")
+                    st.metric("Güven", f"{pred['AI Güven Puanı']:.1f}%", help="AI Güven Skoru")
                     if st.button("Detaylı Analiz", key=f"analyze_{pred['fixture_id']}", use_container_width=True):
                         # Detaylı analize yönlendir
                         analyze_fixture_by_id(pred['fixture_id'], pred['home_id'], pred['away_id'], model_params)
     else:
-        st.info("📋 Bugün için henüz yüksek güvenli tahmin bulunamadı. Dashboard'dan tüm maçları görüntüleyebilirsiniz.")
+        st.info("📋 Bugün popüler liglerde yeterince güvenli tahmin bulunamadı. Dashboard'dan daha fazla lig seçerek tüm maçları görüntüleyebilirsiniz.")
     
     st.markdown("---")
     
