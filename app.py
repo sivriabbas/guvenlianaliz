@@ -220,12 +220,24 @@ TOP_GOAL_BET_THRESHOLD = 65.0
 
 # --- YARDIMCI GÖRÜNÜM FONKSİYONLARI ---
 
+def display_team_with_logo(team_name: str, logo_url: str = None, size: int = 30):
+    """Takım adını logosuyla birlikte gösterir"""
+    if logo_url:
+        return f'<img src="{logo_url}" width="{size}" style="vertical-align: middle; margin-right: 8px;"/>{team_name}'
+    return team_name
+
 def display_best_bet_card(title: str, match_data: pd.Series, prediction_label: str, prediction_value: str, metric_label: str, metric_value: str):
     with st.container(border=True):
         st.markdown(f"<h5 style='text-align: center;'>{title}</h5>", unsafe_allow_html=True)
-        st.metric("Maç", f"{match_data['Ev Sahibi']} vs {match_data['Deplasman']}", label_visibility="collapsed")
+        # Logoları ekle
+        home_logo = match_data.get('home_logo', '')
+        away_logo = match_data.get('away_logo', '')
+        home_with_logo = display_team_with_logo(match_data['Ev Sahibi'], home_logo, size=25)
+        away_with_logo = display_team_with_logo(match_data['Deplasman'], away_logo, size=25)
+        st.markdown(f"<div style='text-align: center; margin: 10px 0;'>{home_with_logo} vs {away_with_logo}</div>", unsafe_allow_html=True)
         st.metric(prediction_label, prediction_value)
         st.metric(metric_label, metric_value)
+
         
 def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Dict], model_params: Dict):
     name_a, name_b = team_names['a'], team_names['b']
@@ -246,6 +258,7 @@ def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Di
             for reason in analysis['reasons']: st.markdown(f"- {reason}")
     st.markdown("---")
     st.subheader("📊 Model Olasılıkları ve Piyasa Karşılaştırması")
+    # Olasılıklar zaten yüzde formatında geliyor
     model_probs = [analysis['probs']['win_a'], analysis['probs']['draw'], analysis['probs']['win_b']]
     if odds_data:
         market_odds = [odds_data['home']['odd'], odds_data['draw']['odd'], odds_data['away']['odd']]
@@ -261,11 +274,50 @@ def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Di
         st.bar_chart(chart_data)
     st.markdown("---")
     st.subheader("⚽ Gol Piyasaları (Model Tahmini)")
+    # Olasılıklar zaten yüzde formatında geliyor
     gol_data = pd.DataFrame({'Kategori': ['2.5 ÜST', '2.5 ALT', 'KG VAR', 'KG YOK'], 'İhtimal (%)': [analysis['probs']['ust_2.5'], analysis['probs']['alt_2.5'], analysis['probs']['kg_var'], analysis['probs']['kg_yok']]}).set_index('Kategori')
     st.dataframe(gol_data.style.format("{:.1f}"), use_container_width=True)
 
-def display_stats_tab(stats: Dict, team_names: Dict, team_ids: Dict):
+def display_stats_tab(stats: Dict, team_names: Dict, team_ids: Dict, params: Optional[Dict] = None):
     name_a, name_b, id_a, id_b = team_names['a'], team_names['b'], team_ids['a'], team_ids['b']
+    
+    # 🆕 Form Grafikleri - Son 5 Maç
+    if params and (params.get('form_string_a') or params.get('form_string_b')):
+        st.subheader("📈 Son 5 Maçın Form Trendi")
+        col_form_a, col_form_b = st.columns(2)
+        
+        def display_form_badges(form_string: str, team_name: str, column):
+            with column:
+                st.markdown(f"**{team_name}**")
+                if not form_string:
+                    st.info("Form verisi yok")
+                    return
+                
+                # Form badge'lerini oluştur
+                badges_html = "<div style='display: flex; gap: 8px; justify-content: center; margin: 10px 0;'>"
+                for char in form_string:
+                    if char == 'W':
+                        badge = "<span style='background-color: #28a745; color: white; padding: 8px 12px; border-radius: 5px; font-weight: bold;'>G</span>"
+                    elif char == 'D':
+                        badge = "<span style='background-color: #6c757d; color: white; padding: 8px 12px; border-radius: 5px; font-weight: bold;'>B</span>"
+                    else:  # L
+                        badge = "<span style='background-color: #dc3545; color: white; padding: 8px 12px; border-radius: 5px; font-weight: bold;'>M</span>"
+                    badges_html += badge
+                badges_html += "</div>"
+                st.markdown(badges_html, unsafe_allow_html=True)
+                
+                # İstatistik hesapla
+                wins = form_string.count('W')
+                draws = form_string.count('D')
+                losses = form_string.count('L')
+                total = len(form_string)
+                points = (wins * 3) + draws
+                st.metric("Puan", f"{points}/{total*3}", help=f"{wins}G - {draws}B - {losses}M")
+        
+        display_form_badges(params.get('form_string_a', ''), name_a, col_form_a)
+        display_form_badges(params.get('form_string_b', ''), name_b, col_form_b)
+        st.markdown("---")
+    
     st.subheader("📊 İstatistiksel Karşılaştırma Grafiği (Radar)")
     stats_a_home = stats['a'].get('home', {}); stats_b_away = stats['b'].get('away', {})
     
@@ -440,6 +492,82 @@ def display_h2h_tab(h2h_stats: Optional[Dict], team_names: Dict):
         
 def display_parameters_tab(params: Dict, team_names: Dict):
     st.subheader("⚙️ Modelin Kullandığı Parametreler")
+    
+    # 🆕 Yeni faktörler özel bölümü
+    st.markdown("### 🎯 Gelişmiş Analiz Faktörleri")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        momentum_a = params.get('momentum_a', 1.0)
+        color_a = "normal" if 0.98 <= momentum_a <= 1.02 else ("inverse" if momentum_a < 0.98 else "off")
+        st.metric("Momentum (Ev)", f"x{momentum_a:.2f}", 
+                 delta=f"{((momentum_a - 1.0) * 100):+.0f}%", delta_color=color_a,
+                 help="Son 5 maçtaki gol farkı trendi")
+    with col2:
+        momentum_b = params.get('momentum_b', 1.0)
+        color_b = "normal" if 0.98 <= momentum_b <= 1.02 else ("inverse" if momentum_b < 0.98 else "off")
+        st.metric("Momentum (Dep)", f"x{momentum_b:.2f}",
+                 delta=f"{((momentum_b - 1.0) * 100):+.0f}%", delta_color=color_b)
+    with col3:
+        h2h = params.get('h2h_factor', 1.0)
+        h2h_desc = "Ev dominant" if h2h >= 1.05 else "Dep dominant" if h2h <= 0.95 else "Dengeli"
+        st.metric("H2H Faktörü", f"x{h2h:.2f}", help=f"Son karşılaşmalar: {h2h_desc}")
+    with col4:
+        referee = params.get('referee_factor', 1.0)
+        ref_desc = "Sert" if referee <= 0.95 else "Yumuşak" if referee >= 1.03 else "Normal"
+        st.metric("Hakem Faktörü", f"x{referee:.2f}", help=f"Hakem stili: {ref_desc}")
+    
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        rest_a = params.get('rest_factor_a', 1.0)
+        st.metric("Dinlenme (Ev)", f"x{rest_a:.2f}", 
+                 delta="Yorgun" if rest_a < 0.98 else "İyi",
+                 help="Son maçtan bu yana geçen gün sayısı")
+    with col6:
+        rest_b = params.get('rest_factor_b', 1.0)
+        st.metric("Dinlenme (Dep)", f"x{rest_b:.2f}",
+                 delta="Yorgun" if rest_b < 0.98 else "İyi")
+    with col7:
+        value_cat = params.get('value_category', 'Dengeli')
+        value_a = params.get('value_mult_a', 1.0)
+        value_b = params.get('value_mult_b', 1.0)
+        value_display = f"Ev x{value_a:.2f} / Dep x{value_b:.2f}"
+        st.metric("Kadro Değeri", value_display, 
+                 delta=value_cat,
+                 help="Elo ve lig bazlı tahmini kadro değeri karşılaştırması")
+    with col8:
+        league_q = params.get('league_quality', 0.85)
+        st.metric("Lig Kalitesi", f"x{league_q:.2f}",
+                 help="1.00 = En üst lig (Premier, La Liga)")
+    
+    col9, col10 = st.columns(2)
+    with col9:
+        odds_used = params.get('odds_used', False)
+        st.metric("Bahis Oranları", "✅ Evet" if odds_used else "❌ Hayır",
+                 help="Model tahminini piyasa oranlarıyla birleştirdi mi?")
+    with col10:
+        st.metric("", "")  # Placeholder
+    
+    # 🆕 Sakatlık Durumu
+    col11, col12 = st.columns(2)
+    with col11:
+        injury_a = params.get('injury_factor_a', 1.0)
+        inj_count_a = params.get('injuries_count_a', 0)
+        inj_status = "🏥 Ciddi" if injury_a <= 0.90 else "🩹 Hafif" if injury_a <= 0.95 else "✅ Sağlam"
+        st.metric(f"Sakatlık (Ev) - {team_names['a']}", f"x{injury_a:.2f}",
+                 delta=f"{inj_count_a} oyuncu" if inj_count_a > 0 else "Yok",
+                 delta_color="inverse" if inj_count_a > 0 else "normal",
+                 help=f"Durum: {inj_status}")
+    with col12:
+        injury_b = params.get('injury_factor_b', 1.0)
+        inj_count_b = params.get('injuries_count_b', 0)
+        inj_status_b = "🏥 Ciddi" if injury_b <= 0.90 else "🩹 Hafif" if injury_b <= 0.95 else "✅ Sağlam"
+        st.metric(f"Sakatlık (Dep) - {team_names['b']}", f"x{injury_b:.2f}",
+                 delta=f"{inj_count_b} oyuncu" if inj_count_b > 0 else "Yok",
+                 delta_color="inverse" if inj_count_b > 0 else "normal",
+                 help=f"Durum: {inj_status_b}")
+    
+    st.markdown("---")
+    st.markdown("### 📊 Temel Parametreler")
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown(f"**{team_names['a']} (Ev Sahibi)**")
@@ -485,14 +613,38 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
             actual_winner = 'home' if is_home_winner is True else 'away' if is_home_winner is False else 'draw'
             if (predicted_home_win and actual_winner == 'home') or (predicted_away_win and actual_winner == 'away') or (predicted_draw and actual_winner == 'draw'): result_icon = "✅"
             else: result_icon = "❌"
-        return {"Saat": fixture['time'], "Lig": fixture['league_name'], "Ev Sahibi": name_a, "Deplasman": name_b, "Tahmin": decision, "Gerçekleşen Skor": actual_score_str, "Sonuç": result_icon, "AI Güven Puanı": analysis['confidence'], "2.5 ÜST (%)": probs['ust_2.5'], "KG VAR (%)": probs['kg_var'], "home_id": id_a, "away_id": id_b, "fixture_id": fixture['match_id']}
+        return {
+            "Saat": fixture['time'], 
+            "Lig": fixture['league_name'], 
+            "Ev Sahibi": name_a, 
+            "Deplasman": name_b, 
+            "Tahmin": decision, 
+            "Gerçekleşen Skor": actual_score_str, 
+            "Sonuç": result_icon, 
+            "AI Güven Puanı": analysis['confidence'], 
+            "2.5 ÜST (%)": probs['ust_2.5'], 
+            "KG VAR (%)": probs['kg_var'], 
+            "home_id": id_a, 
+            "away_id": id_b, 
+            "fixture_id": fixture['match_id'],
+            "home_logo": fixture.get('home_logo', ''),
+            "away_logo": fixture.get('away_logo', '')
+        }
     except Exception as e: 
         st.error(f"❌ {fixture.get('home_name', '?')} vs {fixture.get('away_name', '?')}: Hata - {str(e)}")
         return None
 
 def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, model_params: Dict):
     id_a, name_a, id_b, name_b = team_a_data['id'], team_a_data['name'], team_b_data['id'], team_b_data['name']
-    st.header(f"⚽ {name_a} vs {name_b} Detaylı Analiz")
+    logo_a = team_a_data.get('logo', '')
+    logo_b = team_b_data.get('logo', '')
+    
+    # Başlık logoları ile
+    home_with_logo = display_team_with_logo(name_a, logo_a, size=50)
+    away_with_logo = display_team_with_logo(name_b, logo_b, size=50)
+    st.markdown(f"<h2>⚽ {home_with_logo} vs {away_with_logo}</h2>", unsafe_allow_html=True)
+    st.caption("Detaylı Maç Analizi")
+    
     league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a)
     if not league_info: st.error("Lig bilgisi alınamadı."); return
     analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, LIG_ORTALAMA_GOL)
@@ -523,17 +675,105 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(tab_list)
 
     with tab1: display_summary_tab(analysis, team_names, processed_odds, model_params)
-    with tab2: display_stats_tab(analysis['stats'], team_names, team_ids)
+    with tab2: display_stats_tab(analysis['stats'], team_names, team_ids, analysis.get('params'))
     with tab3: display_injuries_tab(fixture_id, team_names, team_ids, league_info)
     with tab4: display_standings_tab(league_info, team_names)
     with tab5: display_h2h_tab(processed_h2h, team_names)
     with tab6: display_referee_tab(processed_referee_stats)
     with tab7: display_parameters_tab(analysis['params'], team_names)
 
+def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
+    """Bugünün en yüksek güvenli tahminlerini getirir"""
+    today = date.today()
+    
+    # Varsayılan popüler ligleri kullan
+    default_leagues = get_default_favorite_leagues()
+    selected_ids = []
+    for label in default_leagues:
+        league_id = get_league_id_from_display(label)
+        if league_id and league_id not in selected_ids:
+            selected_ids.append(league_id)
+    
+    if not selected_ids:
+        return []
+    
+    # Bugünün maçlarını çek
+    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today)
+    
+    if error or not fixtures:
+        return []
+    
+    # Tüm maçları analiz et
+    analyzed_fixtures = []
+    for fixture in fixtures[:20]:  # İlk 20 maç (API limiti korumak için)
+        summary = analyze_fixture_summary(fixture, model_params)
+        if summary and summary['AI Güven Puanı'] >= 65.0:  # Sadece yüksek güvenli tahminler
+            analyzed_fixtures.append(summary)
+    
+    # Güvene göre sırala ve top N'i döndür
+    analyzed_fixtures.sort(key=lambda x: x['AI Güven Puanı'], reverse=True)
+    return analyzed_fixtures[:top_n]
+
+def analyze_fixture_by_id(fixture_id: int, home_id: int, away_id: int, model_params: Dict):
+    """Fixture ID ile detaylı analiz yapar"""
+    try:
+        # Fixture detaylarını al
+        fixture_details, error = api_utils.get_fixture_details(API_KEY, BASE_URL, fixture_id)
+        if error or not fixture_details:
+            st.error("Maç detayları alınamadı.")
+            return
+        
+        home_team = fixture_details['teams']['home']
+        away_team = fixture_details['teams']['away']
+        
+        # Detaylı analizi göster
+        analyze_and_display(home_team, away_team, fixture_id, model_params)
+    except Exception as e:
+        st.error(f"Analiz sırasında hata: {str(e)}")
+
 def build_home_view(model_params):
     st.title("🏠 Ana Sayfa")
     if LEAGUE_LOAD_ERROR:
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
+    
+    # 🆕 Günün Top 5 Yüksek Güvenli Tahmini
+    st.subheader("🌟 Günün Top 5 Yüksek Güvenli Tahmini")
+    
+    # Bildirim banner'ı
+    top_predictions = []
+    with st.spinner("Bugünün en güvenli tahminleri hesaplanıyor..."):
+        top_predictions = get_top_predictions_today(model_params)
+    
+    if top_predictions and len(top_predictions) > 0:
+        # Uyarı banner'ı
+        max_confidence = max(p['AI Güven Puanı'] for p in top_predictions)
+        if max_confidence >= 75.0:
+            st.success(f"🔥 **YÜKSEK GÜVENLİ TAHMİN UYARISI!** Bugün {len(top_predictions)} yüksek güvenli tahmin bulundu! En yüksek güven: {max_confidence:.1f}", icon="⚡")
+        else:
+            st.info(f"✅ Bugün için {len(top_predictions)} iyi güvenli tahmin bulundu!")
+        
+        for idx, pred in enumerate(top_predictions, 1):
+            with st.container(border=True):
+                col1, col2, col3 = st.columns([3, 2, 1])
+                with col1:
+                    st.markdown(f"**#{idx} - {pred['Lig']}**")
+                    # Logoları HTML ile göster
+                    home_with_logo = display_team_with_logo(pred['Ev Sahibi'], pred.get('home_logo'), size=35)
+                    away_with_logo = display_team_with_logo(pred['Deplasman'], pred.get('away_logo'), size=35)
+                    st.markdown(f"<h3 style='margin: 5px 0;'>{home_with_logo} 🆚 {away_with_logo}</h3>", unsafe_allow_html=True)
+                    st.caption(f"⏰ {pred['Saat']}")
+                with col2:
+                    st.metric("Tahmin", pred['Tahmin'], help="Model tahmini")
+                    st.metric("2.5 Üst", f"{pred['2.5 ÜST (%)']}%")
+                with col3:
+                    st.metric("Güven", f"{pred['AI Güven Puanı']}", help="AI Güven Skoru", delta="Yüksek")
+                    if st.button("Detaylı Analiz", key=f"analyze_{pred['fixture_id']}", use_container_width=True):
+                        # Detaylı analize yönlendir
+                        analyze_fixture_by_id(pred['fixture_id'], pred['home_id'], pred['away_id'], model_params)
+    else:
+        st.info("📋 Bugün için henüz yüksek güvenli tahmin bulunamadı. Dashboard'dan tüm maçları görüntüleyebilirsiniz.")
+    
+    st.markdown("---")
     
     st.subheader("🔍 Hızlı Takım Araması")
     team_query = st.text_input("Bir sonraki maçını bulmak için takım adı girin:", placeholder="Örn: Galatasaray")
@@ -673,10 +913,27 @@ def build_dashboard_view(model_params: Dict):
         st.metric("Günlük Tahmin Başarısı", f"{accuracy:.1f}%", f"{success_count} / {total_matches} doğru tahmin")
         st.markdown("---")
     st.subheader("📋 Analiz Sonuçları")
-    cols_to_display = ["Saat", "Lig", "Ev Sahibi", "Deplasman", "Tahmin", "AI Güven Puanı", "2.5 ÜST (%)", "KG VAR (%)"]
+    
+    # Logo sütunlarını ekle (HTML formatında)
+    if not df.empty and 'home_logo' in df.columns and 'away_logo' in df.columns:
+        df['🏠'] = df.apply(lambda row: f'<img src="{row["home_logo"]}" width="20"/>' if row['home_logo'] else '', axis=1)
+        df['🛫'] = df.apply(lambda row: f'<img src="{row["away_logo"]}" width="20"/>' if row['away_logo'] else '', axis=1)
+        cols_to_display = ["Saat", "Lig", "🏠", "Ev Sahibi", "🛫", "Deplasman", "Tahmin", "AI Güven Puanı", "2.5 ÜST (%)", "KG VAR (%)"]
+    else:
+        cols_to_display = ["Saat", "Lig", "Ev Sahibi", "Deplasman", "Tahmin", "AI Güven Puanı", "2.5 ÜST (%)", "KG VAR (%)"]
+    
     if 'Gerçekleşen Skor' in df.columns and not df['Gerçekleşen Skor'].eq('').all():
-        cols_to_display.insert(5, "Gerçekleşen Skor"); cols_to_display.insert(6, "Sonuç")
-    st.dataframe(df[cols_to_display].sort_values("AI Güven Puanı", ascending=False), use_container_width=True, hide_index=True)
+        if "🏠" in cols_to_display:
+            cols_to_display.insert(7, "Gerçekleşen Skor")
+            cols_to_display.insert(8, "Sonuç")
+        else:
+            cols_to_display.insert(5, "Gerçekleşen Skor")
+            cols_to_display.insert(6, "Sonuç")
+    
+    st.dataframe(df[cols_to_display].sort_values("AI Güven Puanı", ascending=False), use_container_width=True, hide_index=True, column_config={
+        "🏠": st.column_config.ImageColumn("🏠", help="Ev Sahibi Logosu"),
+        "🛫": st.column_config.ImageColumn("🛫", help="Deplasman Logosu")
+    })
     st.markdown("---")
     st.subheader("🔍 Detaylı Maç Analizi")
     options = [f"{r['Saat']} | {r['Lig']} | {r['Ev Sahibi']} vs {r['Deplasman']}" for _, r in df.iterrows()]

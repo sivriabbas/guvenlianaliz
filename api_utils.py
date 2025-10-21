@@ -471,7 +471,8 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
     if error or not matches:
         return None
     stats_list = []
-    for match in reversed(matches):
+    # API'den en yeni maçlar başta gelir, reversed() KULLANMA
+    for match in matches:
         try:
             is_home = match['teams']['home']['id'] == team_id
             score_for = match['score']['fulltime']['home' if is_home else 'away']
@@ -616,8 +617,10 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
                         'time': datetime.fromtimestamp(f['fixture']['timestamp']).strftime('%H:%M'),
                         'home_name': f['teams']['home']['name'], 
                         'home_id': f['teams']['home']['id'],
+                        'home_logo': f['teams']['home'].get('logo', ''),
                         'away_name': f['teams']['away']['name'], 
                         'away_id': f['teams']['away']['id'],
+                        'away_logo': f['teams']['away'].get('logo', ''),
                         'league_name': f['league']['name']
                     }
                     # Biten maçlar için skor ekle
@@ -639,3 +642,36 @@ def get_team_id(api_key: str, base_url: str, team_input: str) -> Optional[Dict[s
         st.sidebar.success(f"✅ Bulunan: {team['name']} ({team['id']})")
         return {'id': team['id'], 'name': team['name']}
     st.sidebar.error(f"❌ Takım bulunamadı: '{team_input}'"); return None
+
+@st.cache_data(ttl=3600)
+def get_team_injuries(api_key: str, base_url: str, team_id: int, fixture_id: Optional[int] = None) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """
+    Takımın sakatlık ve ceza bilgilerini getirir.
+    Returns: (injuries_list, error_message)
+    """
+    params = {'team': team_id}
+    if fixture_id:
+        params['fixture'] = fixture_id
+    
+    response, error = make_api_request(api_key, base_url, "injuries", params)
+    if error:
+        return None, error
+    
+    if not response:
+        return [], None  # Sakatlık yok
+    
+    # Aktif sakatlıkları filtrele
+    active_injuries = []
+    for injury in response:
+        player = injury.get('player', {})
+        injury_type = injury.get('player', {}).get('type', 'Unknown')
+        injury_reason = injury.get('player', {}).get('reason', 'N/A')
+        
+        active_injuries.append({
+            'player_name': player.get('name', 'Unknown'),
+            'player_id': player.get('id'),
+            'type': injury_type,
+            'reason': injury_reason
+        })
+    
+    return active_injuries, None

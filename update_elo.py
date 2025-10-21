@@ -3,10 +3,20 @@
 from datetime import date, timedelta
 import api_utils
 import elo_utils
-from app import INTERESTING_LEAGUES
 import os
 import toml
-from datetime import datetime # datetime modülünü import ediyoruz
+from datetime import datetime
+
+# GitHub Actions için app.py bağımlılığını kaldır
+INTERESTING_LEAGUES = {
+    # Popüler Avrupa 1. Ligleri
+    39: "🇬🇧 Premier League", 140: "🇪🇸 La Liga", 135: "🇮🇹 Serie A", 
+    78: "🇩🇪 Bundesliga", 61: "🇫🇷 Ligue 1", 203: "🇹🇷 Süper Lig",
+    88: "🇳🇱 Eredivisie", 94: "🇵🇹 Primeira Liga", 144: "🇧🇪 Pro League",
+    106: "🇷🇺 Premier League", 197: "🇬🇷 Super League", 169: "🇵🇱 Ekstraklasa",
+    # Diğer ligler...
+    2: "🏆 UEFA Champions League", 3: "🏆 UEFA Europa League", 848: "🏆 UEFA Conference League",
+}
 
 def run_elo_update():
     """Elo reytinglerini güncelleyen ana fonksiyon."""
@@ -23,6 +33,10 @@ def run_elo_update():
         print(f"Hata: API anahtarı '.streamlit/secrets.toml' dosyasından okunamadı. Dosyanın varlığından ve içinde API_KEY olduğundan emin olun. Hata: {e}")
         return
 
+    # 🔒 Mevcut rating'leri yükle - üzerine yazma, sadece güncelle!
+    ratings = elo_utils.read_ratings()
+    print(f"📊 Mevcut Elo veritabanı yüklendi: {len(ratings)} takım")
+    
     # Dünün tarihini al
     yesterday = date.today() - timedelta(days=1)
     
@@ -31,9 +45,6 @@ def run_elo_update():
     league_ids = list(leagues_map.values())
     
     print(f"{yesterday} tarihindeki maçlar için Elo reytingleri güncelleniyor...")
-    
-    # Mevcut reytingleri oku
-    ratings = elo_utils.read_ratings()
     
     # Dünün bitmiş maçlarını API'den çek (limit kontrolünü atlayarak)
     fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, league_ids, yesterday, bypass_limit_check=True)

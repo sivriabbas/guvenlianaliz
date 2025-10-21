@@ -263,6 +263,31 @@ def calculate_form_factor(matches: Optional[List[Dict]], preferred_location: Opt
     factor = 1 + ((avg_points - baseline) / 6)
     return max(0.85, min(1.15, round(factor, 3)))
 
+def get_form_string(matches: Optional[List[Dict]], limit: int = 5) -> str:
+    """
+    Son N maçın form string'ini döner (örn: 'WDLWW')
+    W = Win (Galibiyet), D = Draw (Beraberlik), L = Loss (Mağlubiyet)
+    """
+    if not matches:
+        return ""
+    
+    form_chars = []
+    for match in matches[:limit]:  # Son N maç
+        gf = match.get('goals_for')
+        ga = match.get('goals_against')
+        
+        if gf is None or ga is None:
+            continue
+        
+        if gf > ga:
+            form_chars.append('W')  # Win
+        elif gf == ga:
+            form_chars.append('D')  # Draw
+        else:
+            form_chars.append('L')  # Loss
+    
+    return ''.join(form_chars)
+
 def process_odds_data(odds_response: List[Dict]) -> Optional[Dict]:
     if not odds_response or not odds_response[0].get('bookmakers'): return None
     home_odds, draw_odds, away_odds = [], [], []
@@ -279,6 +304,254 @@ def process_odds_data(odds_response: List[Dict]) -> Optional[Dict]:
     if not all([home_odds, draw_odds, away_odds]): return None
     avg_home_odd, avg_draw_odd, avg_away_odd = sum(home_odds) / len(home_odds), sum(draw_odds) / len(draw_odds), sum(away_odds) / len(away_odds)
     return {'home': {'odd': avg_home_odd, 'prob': (1 / avg_home_odd) * 100}, 'draw': {'odd': avg_draw_odd, 'prob': (1 / avg_draw_odd) * 100}, 'away': {'odd': avg_away_odd, 'prob': (1 / avg_away_odd) * 100}}
+
+def calculate_odds_based_adjustment(odds_data: Optional[Dict], model_win_a: float, model_draw: float, model_win_b: float) -> Dict[str, float]:
+    """Bahis oranlarını model tahminleriyle birleştir (70% model + 30% odds)"""
+    if not odds_data:
+        return {'win_a': model_win_a, 'draw': model_draw, 'win_b': model_win_b}
+    
+    # Model olasılıkları zaten yüzde formatında (0-100), 0-1 aralığına çevir
+    model_win_a_decimal = model_win_a / 100.0
+    model_draw_decimal = model_draw / 100.0
+    model_win_b_decimal = model_win_b / 100.0
+    
+    # Bahis oranlarından olasılıkları al (zaten 0-100 formatında, 0-1'e çevir)
+    odds_win_a = odds_data['home']['prob'] / 100.0
+    odds_draw = odds_data['draw']['prob'] / 100.0
+    odds_win_b = odds_data['away']['prob'] / 100.0
+    
+    # Ağırlıklı ortalama: %70 model + %30 piyasa
+    MODEL_WEIGHT = 0.70
+    ODDS_WEIGHT = 0.30
+    
+    adjusted_win_a = (model_win_a_decimal * MODEL_WEIGHT) + (odds_win_a * ODDS_WEIGHT)
+    adjusted_draw = (model_draw_decimal * MODEL_WEIGHT) + (odds_draw * ODDS_WEIGHT)
+    adjusted_win_b = (model_win_b_decimal * MODEL_WEIGHT) + (odds_win_b * ODDS_WEIGHT)
+    
+    # Normalize et (toplam 1.0 olsun)
+    total = adjusted_win_a + adjusted_draw + adjusted_win_b
+    if total > 0:
+        adjusted_win_a /= total
+        adjusted_draw /= total
+        adjusted_win_b /= total
+    
+    # Yüzde formatına geri çevir (0-100)
+    return {
+        'win_a': round(adjusted_win_a * 100, 1), 
+        'draw': round(adjusted_draw * 100, 1), 
+        'win_b': round(adjusted_win_b * 100, 1)
+    }
+
+def calculate_h2h_factor(h2h_data: Optional[Dict], team_a_id: int) -> float:
+    """Son karşılaşmalarda dominant olan takıma bonus faktör"""
+    if not h2h_data or not h2h_data.get('summary'):
+        return 1.0
+    
+    summary = h2h_data['summary']
+    total = summary.get('total_matches', 0)
+    
+    if total < 3:  # En az 3 maç gerekli
+        return 1.0
+    
+    wins_a = summary.get('wins_a', 0)
+    wins_b = summary.get('wins_b', 0)
+    
+    # Galibiyetlerin %80'inden fazlası bir takıma aitse
+    if wins_a / total >= 0.8:
+        return 1.12  # Team A dominance (arttırıldı 1.08 → 1.12)
+    elif wins_b / total >= 0.8:
+        return 0.88  # Team B dominance (arttırıldı 0.92 → 0.88)
+    elif wins_a / total >= 0.6:
+        return 1.06  # Team A slight advantage (arttırıldı 1.04 → 1.06)
+    elif wins_b / total >= 0.6:
+        return 0.94  # Team B slight advantage (arttırıldı 0.96 → 0.94)
+    
+    return 1.0
+
+def calculate_referee_factor(referee_stats: Optional[Dict]) -> float:
+    """Hakem sertliğine göre gol beklentisi ayarlaması"""
+    if not referee_stats:
+        return 1.0
+    
+    yellow_per_game = referee_stats.get('yellow_per_game', 3.5)
+    red_per_game = referee_stats.get('red_per_game', 0.1)
+    
+    # Sert hakem = daha az akıcı oyun = daha az gol
+    if yellow_per_game > 5.0 or red_per_game > 0.3:
+        return 0.92  # Çok sert hakem
+    elif yellow_per_game > 4.0:
+        return 0.96  # Sert hakem
+    elif yellow_per_game < 2.5 and red_per_game < 0.05:
+        return 1.04  # Yumuşak hakem, akıcı oyun
+    
+    return 1.0
+
+def calculate_rest_days_factor(last_matches: Optional[List[Dict]]) -> float:
+    """Son maçtan bu yana geçen günlere göre dinlenme faktörü"""
+    if not last_matches or len(last_matches) == 0:
+        return 1.0
+    
+    try:
+        # En son maç tarihini al
+        last_match = last_matches[0]  # En son maç (listede ilk sırada)
+        last_date_str = last_match.get('date')
+        
+        if not last_date_str:
+            return 1.0
+        
+        from datetime import datetime, date
+        last_date = datetime.strptime(last_date_str, '%Y-%m-%d').date()
+        today = date.today()
+        rest_days = (today - last_date).days
+        
+        # Az dinlenme = yorgunluk
+        if rest_days < 3:
+            return 0.95  # Yorgun takım
+        elif rest_days < 4:
+            return 0.98
+        elif rest_days > 10:
+            return 0.97  # Çok uzun ara, ritim kaybı
+        
+        return 1.0  # Optimal dinlenme
+    except Exception:
+        return 1.0
+
+def calculate_momentum_factor(last_matches: Optional[List[Dict]], location: str = None) -> float:
+    """Son 5 maçtaki gol farkı ve trend analizi"""
+    if not last_matches or len(last_matches) < 3:
+        return 1.0
+    
+    recent_5 = last_matches[:5] if len(last_matches) >= 5 else last_matches
+    goal_diff_total = 0
+    wins_count = 0
+    
+    for match in recent_5:
+        gf = match.get('goals_for', 0)
+        ga = match.get('goals_against', 0)
+        
+        if gf is None or ga is None:
+            continue
+        
+        goal_diff_total += (gf - ga)
+        if gf > ga:
+            wins_count += 1
+    
+    # Güçlü momentum: +10 veya daha fazla gol farkı
+    if goal_diff_total >= 10:
+        return 1.08
+    elif goal_diff_total >= 6:
+        return 1.04
+    elif goal_diff_total <= -10:
+        return 0.92
+    elif goal_diff_total <= -6:
+        return 0.96
+    
+    return 1.0
+
+def calculate_league_quality_multiplier(league_id: int) -> float:
+    """Lig kalitesine göre çarpan (önemli ligler daha öngörülebilir)"""
+    LEAGUE_QUALITY = {
+        39: 1.00,   # England - Premier League
+        140: 1.00,  # Spain - La Liga
+        78: 1.00,   # Germany - Bundesliga
+        135: 1.00,  # Italy - Serie A
+        61: 1.00,   # France - Ligue 1
+        2: 0.95,    # UEFA Champions League
+        3: 0.95,    # UEFA Europa League
+        203: 0.85,  # Turkey - Süper Lig
+        88: 0.90,   # Netherlands - Eredivisie
+        94: 0.90,   # Portugal - Primeira Liga
+        128: 0.80,  # Argentina - Primera División
+        71: 0.80,   # Brazil - Serie A
+    }
+    
+    return LEAGUE_QUALITY.get(league_id, 0.85)  # Varsayılan 0.85
+
+def calculate_team_value_factor(elo_rating_a: int, elo_rating_b: int, league_id: int) -> Dict[str, float]:
+    """
+    Takım değeri faktörü - Elo rating ve lig kalitesine göre tahmini piyasa değeri farkı
+    Büyük değer farkları hücum/savunma güçlerini etkiler
+    
+    Returns:
+        Dict: {'value_mult_a': float, 'value_mult_b': float}
+    """
+    # Elo farkından değer farkını tahmin et
+    elo_diff = elo_rating_a - elo_rating_b
+    
+    # Lig kalitesi çarpanı - üst ligde Elo farkı daha anlamlı
+    league_quality = calculate_league_quality_multiplier(league_id)
+    adjusted_diff = elo_diff * league_quality
+    
+    # Değer çarpanı hesapla (büyük fark = daha fazla etki)
+    if adjusted_diff > 200:  # Çok büyük fark (örn: Man City vs küçük takım)
+        value_mult_a = 1.08
+        value_mult_b = 0.93
+    elif adjusted_diff > 120:
+        value_mult_a = 1.05
+        value_mult_b = 0.95
+    elif adjusted_diff > 60:
+        value_mult_a = 1.03
+        value_mult_b = 0.97
+    elif adjusted_diff < -200:
+        value_mult_a = 0.93
+        value_mult_b = 1.08
+    elif adjusted_diff < -120:
+        value_mult_a = 0.95
+        value_mult_b = 1.05
+    elif adjusted_diff < -60:
+        value_mult_a = 0.97
+        value_mult_b = 1.03
+    else:  # Dengeli değer
+        value_mult_a = 1.0
+        value_mult_b = 1.0
+    
+    return {
+        'value_mult_a': value_mult_a,
+        'value_mult_b': value_mult_b,
+        'value_category': _get_value_category(adjusted_diff)
+    }
+
+def _get_value_category(diff: float) -> str:
+    """Değer farkı kategorisi"""
+    if diff > 200: return "Ev Sahibi Çok Üstün"
+    elif diff > 120: return "Ev Sahibi Üstün"
+    elif diff > 60: return "Ev Sahibi Hafif Üstün"
+    elif diff < -200: return "Deplasman Çok Üstün"
+    elif diff < -120: return "Deplasman Üstün"
+    elif diff < -60: return "Deplasman Hafif Üstün"
+    else: return "Dengeli"
+
+def calculate_xg_adjustment(stats: Dict, location: str) -> float:
+    """xG verisi varsa kullan (gerçek goller yanıltıcı olabilir)"""
+    # API'den xG verisi gelirse burada işle
+    # Şu an için placeholder
+    return 1.0
+
+def calculate_injury_factor(injuries: Optional[List[Dict]], team_id: int) -> float:
+    """
+    Sakatlık ve ceza durumuna göre güç kaybı hesaplar
+    
+    Args:
+        injuries: Sakatlık listesi
+        team_id: Takım ID
+    
+    Returns:
+        0.85-1.00 arası çarpan (çok sakatlık varsa düşük)
+    """
+    if not injuries:
+        return 1.0  # Sakatlık yok, etki yok
+    
+    injury_count = len(injuries)
+    
+    # Sakatlık sayısına göre ceza
+    if injury_count >= 5:
+        return 0.85  # Çok ciddi sakatlık krizi
+    elif injury_count >= 3:
+        return 0.90  # Orta düzey sakatlık
+    elif injury_count >= 1:
+        return 0.95  # Az sakatlık
+    
+    return 1.0
 
 def poisson_pmf(l, k):
     if l <= 0 or k < 0: return 0.0
@@ -332,8 +605,71 @@ def generate_prediction_reasons(analysis_data: Dict, team_names: Dict) -> List[s
     max_prob_key = max(probs, key=lambda k: probs[k] if 'win' in k or 'draw' in k else -1)
     winner_name = team_names['a'] if max_prob_key == 'win_a' else team_names['b'] if max_prob_key == 'win_b' else ""
 
+    # 🆕 Bahis oranları kullanıldı mı?
+    if params.get('odds_used'):
+        reasons.append("💡 Model tahmini piyasa oranlarıyla (%30) birleştirildi.")
+
     if diff > 20 and winner_name:
         reasons.append(f"Model, **{winner_name}** takımını net favori olarak görüyor (olasılık farkı {diff:.1f}%).")
+    
+    # 🆕 Momentum analizi
+    momentum_a = params.get('momentum_a', 1.0)
+    momentum_b = params.get('momentum_b', 1.0)
+    if momentum_a >= 1.06:
+        reasons.append(f"⚡ **{team_names['a']}** güçlü momentum ile geliyor (son 5 maç +10 gol farkı).")
+    elif momentum_b >= 1.06:
+        reasons.append(f"⚡ **{team_names['b']}** güçlü momentum ile geliyor (son 5 maç +10 gol farkı).")
+    
+    # 🆕 H2H dominance
+    h2h_factor = params.get('h2h_factor', 1.0)
+    if h2h_factor >= 1.12:
+        reasons.append(f"📊 **{team_names['a']}** son karşılaşmalarda çok dominant (%80+ galibiyet oranı).")
+    elif h2h_factor >= 1.06:
+        reasons.append(f"📊 **{team_names['a']}** son karşılaşmalarda avantajlı (%60+ galibiyet).")
+    elif h2h_factor <= 0.88:
+        reasons.append(f"📊 **{team_names['b']}** son karşılaşmalarda çok dominant (%80+ galibiyet oranı).")
+    elif h2h_factor <= 0.94:
+        reasons.append(f"📊 **{team_names['b']}** son karşılaşmalarda avantajlı (%60+ galibiyet).")
+    
+    # 🆕 Hakem etkisi
+    referee_factor = params.get('referee_factor', 1.0)
+    if referee_factor <= 0.94:
+        reasons.append("🟨 Sert hakem bekleniyor - akıcı olmayan oyun, daha az gol.")
+    elif referee_factor >= 1.03:
+        reasons.append("✅ Yumuşak hakem bekleniyor - akıcı oyun, daha fazla gol.")
+    
+    # 🆕 Sakatlık & Ceza durumu
+    injury_factor_a = params.get('injury_factor_a', 1.0)
+    injury_factor_b = params.get('injury_factor_b', 1.0)
+    injuries_count_a = params.get('injuries_count_a', 0)
+    injuries_count_b = params.get('injuries_count_b', 0)
+    
+    if injury_factor_a <= 0.90:
+        reasons.append(f"🏥 **{team_names['a']}** ciddi sakatlık krizi yaşıyor ({injuries_count_a} oyuncu).")
+    elif injury_factor_a <= 0.95:
+        reasons.append(f"🩹 **{team_names['a']}** sakatlıklardan etkilenmiş ({injuries_count_a} oyuncu).")
+    
+    if injury_factor_b <= 0.90:
+        reasons.append(f"🏥 **{team_names['b']}** ciddi sakatlık krizi yaşıyor ({injuries_count_b} oyuncu).")
+    elif injury_factor_b <= 0.95:
+        reasons.append(f"🩹 **{team_names['b']}** sakatlıklardan etkilenmiş ({injuries_count_b} oyuncu).")
+    
+    # 🆕 Takım değeri faktörü
+    value_category = params.get('value_category', 'Dengeli')
+    value_mult_a = params.get('value_mult_a', 1.0)
+    value_mult_b = params.get('value_mult_b', 1.0)
+    if value_mult_a >= 1.05:
+        reasons.append(f"💰 **{team_names['a']}** kadro değeri açısından üstün ({value_category}).")
+    elif value_mult_b >= 1.05:
+        reasons.append(f"💰 **{team_names['b']}** kadro değeri açısından üstün ({value_category}).")
+    
+    # 🆕 Dinlenme süresi
+    rest_a = params.get('rest_factor_a', 1.0)
+    rest_b = params.get('rest_factor_b', 1.0)
+    if rest_a <= 0.96:
+        reasons.append(f"😓 **{team_names['a']}** kısa dinlenme süresi nedeniyle yorgun olabilir.")
+    elif rest_b <= 0.96:
+        reasons.append(f"😓 **{team_names['b']}** kısa dinlenme süresi nedeniyle yorgun olabilir.")
 
     if max_prob_key == 'win_a' and params['home_att'] > params['away_def'] * 1.4:
         reasons.append(f"**{team_names['a']}** hücum verileri ({params['home_att']:.2f} gol) rakibin savunmasından ({params['away_def']:.2f}) belirgin şekilde üstün.")
@@ -374,9 +710,9 @@ def generate_prediction_reasons(analysis_data: Dict, team_names: Dict) -> List[s
     if not reasons and winner_name:
         reasons.append(f"Genel parametre dengesi **{winner_name}** tarafını öne çıkarıyor.")
 
-    return reasons[:3]
+    return reasons[:5]  # 3'ten 5'e çıkardık - daha fazla faktör göster
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=300)  # 5 dakika - Elo güncellemeleri için kısa cache
 def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, default_avg):
     baselines = get_league_goal_baselines(api_key, base_url, league_info, default_avg)
     avg_goals = baselines['total_avg'] or default_avg
@@ -414,6 +750,10 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b)
     weighted_stats_a = calculate_weighted_stats(last_matches_a) if last_matches_a else {}
     weighted_stats_b = calculate_weighted_stats(last_matches_b) if last_matches_b else {}
+    
+    # Form string'lerini hesapla (görsel için)
+    form_string_a = get_form_string(last_matches_a, limit=5)
+    form_string_b = get_form_string(last_matches_b, limit=5)
 
     FORM_WEIGHT, SEASON_WEIGHT = 0.6, 0.4
 
@@ -471,26 +811,32 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     # Önce Elo farkını hesapla ve temel ayarlamayı yap
     elo_diff = rating_home - rating_away
     
-    # Elo farkına göre çok daha agresif ayarlama
+    # Elo farkına göre çok daha agresif ayarlama (DÜŞÜK EŞİKLER)
     if elo_diff < -150:  # Deplasman çok güçlü (örn: PSG)
-        elo_boost_away = 1.35
-        elo_nerf_home = 0.75
+        elo_boost_away = 1.40
+        elo_nerf_home = 0.70
     elif elo_diff < -80:
+        elo_boost_away = 1.32
+        elo_nerf_home = 0.78
+    elif elo_diff < -40:  # KÜÇÜK FARKLAR BİLE ETKİLİ
         elo_boost_away = 1.25
-        elo_nerf_home = 0.82
-    elif elo_diff < -30:
-        elo_boost_away = 1.15
+        elo_nerf_home = 0.85
+    elif elo_diff < -15:  # -15 ile -40 arası (Amed örneği -30)
+        elo_boost_away = 1.18
         elo_nerf_home = 0.90
     elif elo_diff > 150:  # Ev sahibi çok güçlü
-        elo_boost_away = 0.75
-        elo_nerf_home = 1.30
+        elo_boost_away = 0.70
+        elo_nerf_home = 1.35
     elif elo_diff > 80:
-        elo_boost_away = 0.82
+        elo_boost_away = 0.78
+        elo_nerf_home = 1.28
+    elif elo_diff > 40:  # KÜÇÜK FARKLAR BİLE ETKİLİ
+        elo_boost_away = 0.85
         elo_nerf_home = 1.22
-    elif elo_diff > 30:
+    elif elo_diff > 15:  # +15 ile +40 arası
         elo_boost_away = 0.90
-        elo_nerf_home = 1.12
-    else:  # Dengeli
+        elo_nerf_home = 1.15
+    else:  # -15 ile +15 arası: Gerçekten dengeli
         elo_boost_away = 1.0
         elo_nerf_home = 1.0
 
@@ -509,6 +855,71 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
 
     lambda_a *= min(1.08, max(0.92, form_factor_a))
     lambda_b *= min(1.08, max(0.92, form_factor_b))
+    
+    # 🆕 YENİ FAKTÖRLER - Gelişmiş Analiz Sistemi
+    
+    # Takım değeri faktörü (Elo ve lig bazlı)
+    team_value_data = calculate_team_value_factor(rating_home, rating_away, league_info['league_id'])
+    value_mult_a = team_value_data['value_mult_a']
+    value_mult_b = team_value_data['value_mult_b']
+    value_category = team_value_data['value_category']
+    lambda_a *= value_mult_a
+    lambda_b *= value_mult_b
+    
+    # Momentum faktörü (son 5 maçtaki trend)
+    momentum_a = calculate_momentum_factor(last_matches_a, 'home')
+    momentum_b = calculate_momentum_factor(last_matches_b, 'away')
+    lambda_a *= momentum_a
+    lambda_b *= momentum_b
+    
+    # Dinlenme süresi faktörü
+    rest_factor_a = calculate_rest_days_factor(last_matches_a)
+    rest_factor_b = calculate_rest_days_factor(last_matches_b)
+    lambda_a *= rest_factor_a
+    lambda_b *= rest_factor_b
+    
+    # H2H faktörü
+    h2h_matches, _ = api_utils.get_h2h_matches(api_key, base_url, id_a, id_b, 10)
+    h2h_data = process_h2h_data(h2h_matches, id_a)
+    h2h_factor = calculate_h2h_factor(h2h_data, id_a)
+    lambda_a *= h2h_factor
+    lambda_b *= (2.0 - h2h_factor)  # Ters oran
+    
+    # Hakem faktörü
+    fixture_details, _ = api_utils.get_fixture_details(api_key, base_url, fixture_id)
+    referee_stats_processed = None
+    if fixture_details:
+        referee_info = fixture_details.get('fixture', {}).get('referee')
+        if isinstance(referee_info, dict):
+            referee_id = referee_info.get('id')
+            if referee_id:
+                referee_data, _ = api_utils.get_referee_stats(api_key, base_url, referee_id, league_info['season'])
+                referee_stats_processed = process_referee_data(referee_data)
+    
+    referee_factor = calculate_referee_factor(referee_stats_processed)
+    lambda_a *= referee_factor
+    lambda_b *= referee_factor
+    
+    # Sakatlık & Ceza faktörü
+    injuries_a, _ = api_utils.get_team_injuries(api_key, base_url, id_a, fixture_id)
+    injuries_b, _ = api_utils.get_team_injuries(api_key, base_url, id_b, fixture_id)
+    injury_factor_a = calculate_injury_factor(injuries_a, id_a)
+    injury_factor_b = calculate_injury_factor(injuries_b, id_b)
+    lambda_a *= injury_factor_a
+    lambda_b *= injury_factor_b
+    
+    # Lig kalitesi çarpanı
+    league_quality = calculate_league_quality_multiplier(league_info['league_id'])
+    # Lig kalitesi Elo farkının etkisini artırır
+    if league_quality >= 1.0:  # Üst düzey ligler
+        # Kalite farkı daha belirgin olur
+        if abs(elo_diff) > 100:
+            if elo_diff > 0:
+                lambda_a *= 1.02
+                lambda_b *= 0.98
+            else:
+                lambda_a *= 0.98
+                lambda_b *= 1.02
 
     # Kalite farkı yüksekse regresyonu azalt
     quality_gap = abs(elo_diff)
@@ -529,6 +940,23 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     score_b = round(lambda_b, 2)
 
     probs = calculate_match_probabilities(score_a, score_b)
+    
+    # 🆕 Bahis oranlarıyla model tahminini birleştir (%70 model + %30 odds)
+    odds_response, _ = api_utils.get_fixture_odds(api_key, base_url, fixture_id)
+    odds_data = process_odds_data(odds_response) if odds_response else None
+    
+    if odds_data:
+        adjusted_probs = calculate_odds_based_adjustment(
+            odds_data,
+            probs['win_a'],
+            probs['draw'],
+            probs['win_b']
+        )
+        # Adjusted probları kullan
+        probs['win_a'] = adjusted_probs['win_a']
+        probs['draw'] = adjusted_probs['draw']
+        probs['win_b'] = adjusted_probs['win_b']
+    
     ranking = sorted([probs['win_a'], probs['win_b'], probs['draw']], reverse=True)
     diff = round(ranking[0] - ranking[1], 1)
 
@@ -581,6 +1009,24 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
             'baseline_std': baselines['total_std'],
             'sample_size': baselines['sample_size'],
             'pace_index': pace_index,
+            # 🆕 Yeni faktörler
+            'momentum_a': momentum_a,
+            'momentum_b': momentum_b,
+            'rest_factor_a': rest_factor_a,
+            'rest_factor_b': rest_factor_b,
+            'h2h_factor': h2h_factor,
+            'referee_factor': referee_factor,
+            'league_quality': league_quality,
+            'odds_used': odds_data is not None,
+            'injury_factor_a': injury_factor_a,
+            'injury_factor_b': injury_factor_b,
+            'injuries_count_a': len(injuries_a) if injuries_a else 0,
+            'injuries_count_b': len(injuries_b) if injuries_b else 0,
+            'form_string_a': form_string_a,
+            'form_string_b': form_string_b,
+            'value_mult_a': value_mult_a,
+            'value_mult_b': value_mult_b,
+            'value_category': value_category,
         },
         'stats': {'a': stats_a, 'b': stats_b},
     }
