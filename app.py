@@ -1254,6 +1254,29 @@ def main():
         except Exception:
             pass
 
+        # IP KISITLAMASI KONTROLÜ - Admin hariç
+        if username not in admin_users:
+            try:
+                client_ip = api_utils.get_client_ip()
+                if client_ip:
+                    ip_assignments = api_utils._get_ip_assignments()
+                    assigned_user = ip_assignments.get(client_ip)
+                    
+                    if not assigned_user:
+                        # Bu IP ilk kez kullanılıyor - kaydet
+                        api_utils._set_ip_assignment(client_ip, username)
+                    elif assigned_user != username:
+                        # Bu IP başka bir kullanıcıya ait!
+                        st.error(f"⛔ **IP KISITLAMASI:** Bu IP adresi zaten '{assigned_user}' kullanıcısına tanımlı. Aynı IP'den birden fazla hesap kullanılamaz.")
+                        st.warning("Lütfen çıkış yapın ve kendi IP adresinizden giriş yapın.")
+                        if st.button("Çıkış Yap"):
+                            authenticator.logout()
+                            st.rerun()
+                        st.stop()
+            except Exception as e:
+                # IP kontrolünde hata olursa uygulamayı durdurma
+                print(f"IP kontrol hatası: {e}")
+
         if 'view' not in st.session_state: st.session_state.view = 'home'
         if 'favorite_leagues' not in st.session_state: st.session_state.favorite_leagues = None
 

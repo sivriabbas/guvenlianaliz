@@ -384,7 +384,7 @@ def set_user_tier(username: str, tier: str) -> Tuple[bool, Optional[str]]:
     return True, f"Kullanıcı {username} başarıyla {tier} seviyesine geçirildi ve limiti {new_limit} olarak ayarlandı."
 
 def check_api_limit() -> Tuple[bool, Optional[str]]:
-    """API isteği yapmadan önce limiti kontrol eder ve gerekirse sayacı artırır."""
+    """API isteği yapmadan önce limiti kontrol eder. SAYACI ARTIRMAZ - sadece kontrol eder."""
     try:
         if not HAS_STREAMLIT:
             return True, None  # GitHub Actions için bypass
@@ -399,14 +399,6 @@ def check_api_limit() -> Tuple[bool, Optional[str]]:
     
     # Admin kullanıcılar için sınırsız erişim
     if username and username in admin_users:
-        # Admin için sadece kullanım sayacını artır, limit kontrolü yapma
-        try:
-            user_usage = get_current_usage(username)
-            user_usage['count'] = user_usage.get('count', 0) + 1
-            user_usage['monthly_count'] = user_usage.get('monthly_count', 0) + 1
-            update_usage(username, user_usage)
-        except Exception:
-            pass  # Sayaç hatası olsa bile admin devam edebilsin
         return True, None
     
     tier = st.session_state.get('tier', 'ücretsiz')
@@ -432,11 +424,28 @@ def check_api_limit() -> Tuple[bool, Optional[str]]:
     if monthly_limit is not None and user_usage.get('monthly_count', 0) >= monthly_limit:
         return False, f"Aylık API istek limitinize ({monthly_limit}) ulaştınız. Sonraki ay tekrar deneyin."
 
-    user_usage['count'] = user_usage.get('count', 0) + 1
-    user_usage['monthly_count'] = user_usage.get('monthly_count', 0) + 1
-    update_usage(username, user_usage)
-
+    # SADECE KONTROL ET, ARTIRMA!
     return True, None
+
+def increment_api_usage() -> None:
+    """API kullanım sayacını artırır - sadece gerçek HTTP isteği yapıldığında çağrılmalı."""
+    try:
+        if not HAS_STREAMLIT:
+            return  # GitHub Actions için bypass
+        if "authentication_status" not in st.session_state or not st.session_state["authentication_status"]:
+            return
+    except Exception:
+        return
+
+    username = st.session_state.get('username')
+    admin_users = st.session_state.get('admin_users', [])
+    
+    # Admin için de sayacı artır ama limit kontrolü yapma
+    if username:
+        user_usage = get_current_usage(username)
+        user_usage['count'] = user_usage.get('count', 0) + 1
+        user_usage['monthly_count'] = user_usage.get('monthly_count', 0) + 1
+        update_usage(username, user_usage)
 
 def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[str, Any], skip_limit: bool = False) -> Tuple[Optional[Any], Optional[str]]:
     if not skip_limit:
@@ -448,6 +457,11 @@ def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[st
     url = f"{base_url}/{endpoint}"
     try:
         response = requests.get(url, headers=headers, params=params, timeout=20)
+        
+        # GERÇEK HTTP İSTEĞİ YAPILDI - SAYACI ARTIR
+        if not skip_limit:
+            increment_api_usage()
+        
         response.raise_for_status()
         api_data = response.json()
         if api_data.get('errors') and (isinstance(api_data['errors'], dict) and api_data['errors']) or (isinstance(api_data['errors'], list) and len(api_data['errors']) > 0):
