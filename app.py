@@ -686,29 +686,25 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir"""
     today = date.today()
     
-    # Varsayılan popüler ligleri kullan
-    default_leagues = get_default_favorite_leagues()
-    selected_ids = []
-    for label in default_leagues:
-        league_id = get_league_id_from_display(label)
-        if league_id and league_id not in selected_ids:
-            selected_ids.append(league_id)
-    
-    if not selected_ids:
-        return []
+    # Sadece en popüler 3 ligi kontrol et (API limiti korumak için)
+    popular_ids = [203, 39, 140]  # Süper Lig, Premier League, La Liga
     
     # Bugünün maçlarını çek
-    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today)
+    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, popular_ids, today)
     
     if error or not fixtures:
         return []
     
-    # Tüm maçları analiz et
+    # İlk 10 maçı analiz et (API limiti korumak için)
     analyzed_fixtures = []
-    for fixture in fixtures[:20]:  # İlk 20 maç (API limiti korumak için)
-        summary = analyze_fixture_summary(fixture, model_params)
-        if summary and summary['AI Güven Puanı'] >= 65.0:  # Sadece yüksek güvenli tahminler
-            analyzed_fixtures.append(summary)
+    for fixture in fixtures[:10]:
+        try:
+            summary = analyze_fixture_summary(fixture, model_params)
+            if summary and summary['AI Güven Puanı'] >= 65.0:  # Sadece yüksek güvenli tahminler
+                analyzed_fixtures.append(summary)
+        except Exception as e:
+            # Sessizce devam et (API hatası, veri eksikliği vs.)
+            continue
     
     # Güvene göre sırala ve top N'i döndür
     analyzed_fixtures.sort(key=lambda x: x['AI Güven Puanı'], reverse=True)
@@ -861,9 +857,16 @@ def build_dashboard_view(model_params: Dict):
     with col2:
         stored_favorites = st.session_state.get('favorite_leagues')
         default_leagues = normalize_league_labels(stored_favorites) or get_default_favorite_leagues()
+        
+        # Popüler ligleri en üste koy
+        popular_league_ids = [203, 39, 140, 135, 78, 61, 2, 3]  # Süper Lig, Premier, La Liga, Serie A, Bundesliga, Ligue 1, UCL, UEL
+        popular_leagues = [INTERESTING_LEAGUES[lid] for lid in popular_league_ids if lid in INTERESTING_LEAGUES]
+        other_leagues = [league for league in INTERESTING_LEAGUES.values() if league not in popular_leagues]
+        sorted_leagues = popular_leagues + sorted(other_leagues)
+        
         selected_names = st.multiselect(
             "Analiz Edilecek Ligleri Seçin",
-            options=list(INTERESTING_LEAGUES.values()),
+            options=sorted_leagues,
             default=default_leagues,
             placeholder="Lig seçimi yapın..."
         )
