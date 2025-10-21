@@ -683,14 +683,14 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab7: display_parameters_tab(analysis['params'], team_names)
 
 def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
-    """Bugünün en yüksek güvenli tahminlerini getirir"""
+    """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
     today = date.today()
     
     # Sadece en popüler 3 ligi kontrol et (API limiti korumak için)
     popular_ids = [203, 39, 140]  # Süper Lig, Premier League, La Liga
     
-    # Bugünün maçlarını çek
-    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, popular_ids, today)
+    # Bugünün maçlarını çek - KULLANICI LİMİTİNİ TÜKETME
+    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, popular_ids, today, bypass_limit_check=True)
     
     if error or not fixtures:
         return []
@@ -825,7 +825,8 @@ def build_home_view(model_params):
 
     st.write(f"**Bugünün Maçları ({today.strftime('%d %B %Y')})**")
     with st.spinner("Bugünün favori maçları getiriliyor..."):
-        fixtures_today, error_today = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today)
+        # KULLANICI LİMİTİNİ TÜKETME - Ana sayfa için ücretsiz
+        fixtures_today, error_today = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today, bypass_limit_check=True)
 
     if error_today:
         st.error(f"Bugünün maçları getirilirken hata oluştu: {error_today}")
@@ -837,7 +838,8 @@ def build_home_view(model_params):
 
     st.write(f"**Yarının Maçları ({tomorrow.strftime('%d %B %Y')})**")
     with st.spinner("Yarının favori maçları getiriliyor..."):
-        fixtures_tomorrow, error_tomorrow = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, tomorrow)
+        # KULLANICI LİMİTİNİ TÜKETME - Ana sayfa için ücretsiz
+        fixtures_tomorrow, error_tomorrow = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, tomorrow, bypass_limit_check=True)
 
     if error_tomorrow:
         st.error(f"Yarının maçları getirilirken hata oluştu: {error_tomorrow}")
