@@ -692,9 +692,9 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     if is_admin:
         # ADMIN: TÜM LİGLERİ TARA (daha fazla maç analiz et)
         all_league_ids = list(INTERESTING_LEAGUES.keys())
-        print(f"🔑 ADMIN MODU: {len(all_league_ids)} lig taranıyor...")
-        selected_ids = all_league_ids[:30]  # İlk 30 lig (API limiti korumak için)
-        max_matches = 50  # Daha fazla maç
+        print(f"🔑 ADMIN MODU: {len(all_league_ids)} LİGİN HEPSİ taranıyor...")
+        selected_ids = all_league_ids  # TÜM LİGLER (sınırsız)
+        max_matches = 100  # Daha fazla maç analiz et
     else:
         # NORMAL KULLANICI: Sadece popüler 6 lig
         selected_ids = [203, 39, 140, 135, 78, 61]  # Süper Lig, Premier, La Liga, Serie A, Bundesliga, Ligue 1
@@ -774,14 +774,19 @@ def build_home_view(model_params):
     
     # 📊 Bugün Hangi Liglerde Maç Var? (Sadece Admin)
     if is_admin:
-        with st.expander("📊 Bugün Hangi Liglerde Maç Var? (Admin)", expanded=False):
+        with st.expander("📊 Bugün Hangi Liglerde Maç Var? (Admin - TÜM LİGLER)", expanded=False):
             today = date.today()
             all_league_ids = list(INTERESTING_LEAGUES.keys())
             
-            with st.spinner("Bugünün tüm maçları taranıyor..."):
-                fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, all_league_ids[:50], today, bypass_limit_check=True)
+            st.info(f"🔍 {len(all_league_ids)} lig taranıyor... (Bu birkaç saniye sürebilir)")
             
-            if fixtures:
+            with st.spinner("Bugünün tüm maçları taranıyor..."):
+                # TÜM LİGLERİ TARA (sınır yok)
+                fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, all_league_ids, today, bypass_limit_check=True)
+            
+            if error:
+                st.error(f"❌ API Hatası: {error}")
+            elif fixtures:
                 # Liglere göre grupla
                 league_stats = {}
                 for fixture in fixtures:
@@ -808,7 +813,7 @@ def build_home_view(model_params):
     
     # Admin badge
     if is_admin:
-        st.info("🔑 **ADMIN MODU AKTIF:** Tüm ligler taranıyor (30+ lig, 50 maç analiz)", icon="👑")
+        st.info("🔑 **ADMIN MODU AKTIF:** TÜM ligler taranıyor (100+ maç analiz, sınırsız lig desteği)", icon="👑")
     
     # Bildirim banner'ı
     top_predictions = []
