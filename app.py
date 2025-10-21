@@ -126,6 +126,28 @@ INTERESTING_LEAGUES = {
 
 ADMIN_USERS = ['sivrii1940', 'admin']
 
+# En Popüler 100 Lig (Admin paneli için)
+TOP_100_POPULAR_LEAGUES = [
+    # UEFA Kupaları (en önemli)
+    2, 3, 848,
+    # Top 6 Avrupa Ligleri
+    39, 140, 135, 78, 61, 203,
+    # Diğer Önemli Avrupa 1. Ligleri
+    88, 94, 144, 106, 197, 169, 333, 218, 235, 271, 119, 103, 179, 283, 345, 318, 177, 327,
+    # Avrupa 2. Ligleri
+    40, 141, 136, 79, 62, 204, 89, 95, 145,
+    # Amerika Ligleri
+    253, 255, 71, 72, 128, 129, 265, 266, 239, 240, 242, 281, 250, 274,
+    # Asya Ligleri
+    98, 99, 292, 293, 307, 955, 480, 305, 301, 202, 188, 340,
+    # Afrika ve Diğer
+    302, 233, 180, 667,
+    # Ek Önemli Ligler
+    113, 114, 115, 116, 117, 118, 120, 121, 122, 123, 124, 125, 126, 127,
+    130, 131, 132, 133, 134, 137, 138, 139, 142, 143, 146, 147, 148, 149,
+    150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163
+]
+
 DEFAULT_LEAGUES = INTERESTING_LEAGUES.copy()
 LEGACY_LEAGUE_NAMES = {name: lid for lid, name in DEFAULT_LEAGUES.items()}
 
@@ -691,10 +713,9 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     is_admin = st.session_state.get('username', '') in ADMIN_USERS
     
     if is_admin:
-        # ADMIN: TÜM LİGLERİ TARA (daha fazla maç analiz et)
-        all_league_ids = list(INTERESTING_LEAGUES.keys())
-        print(f"🔑 ADMIN MODU: {len(all_league_ids)} LİGİN HEPSİ taranıyor...")
-        selected_ids = all_league_ids  # TÜM LİGLER (sınırsız)
+        # ADMIN: POPÜLER 100 LİG TARA (performans optimizasyonu)
+        selected_ids = TOP_100_POPULAR_LEAGUES
+        print(f"🔑 ADMIN MODU: Popüler 100 lig taranıyor...")
         max_matches = 100  # Daha fazla maç analiz et
     else:
         # NORMAL KULLANICI: Sadece popüler 6 lig
@@ -775,15 +796,16 @@ def build_home_view(model_params):
     
     # 📊 Bugün Hangi Liglerde Maç Var? (Sadece Admin)
     if is_admin:
-        with st.expander("📊 Bugün Hangi Liglerde Maç Var? (Admin - TÜM LİGLER)", expanded=False):
+        with st.expander("📊 Bugün Hangi Liglerde Maç Var? (Admin - POPÜLER 100 LİG)", expanded=False):
             today = date.today()
-            all_league_ids = list(INTERESTING_LEAGUES.keys())
+            # POPÜLER 100 LİG (Tüm ligler yerine - performans optimizasyonu)
+            popular_100 = TOP_100_POPULAR_LEAGUES
             
-            st.info(f"🔍 {len(all_league_ids)} lig taranıyor... (Bu birkaç saniye sürebilir)")
+            st.info(f"🔍 Popüler 100 lig taranıyor... (Daha hızlı performans)")
             
-            with st.spinner("Bugünün tüm maçları taranıyor..."):
-                # TÜM LİGLERİ TARA (sınır yok)
-                fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, all_league_ids, today, bypass_limit_check=True)
+            with st.spinner("Bugünün popüler lig maçları taranıyor..."):
+                # POPÜLER 100 LİGİ TARA
+                fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, popular_100, today, bypass_limit_check=True)
             
             if error:
                 st.error(f"❌ API Hatası: {error}")
@@ -797,7 +819,7 @@ def build_home_view(model_params):
                         league_stats[league_name] = {'count': 0, 'id': league_id}
                     league_stats[league_name]['count'] += 1
                 
-                st.success(f"🎯 Bugün **{len(fixtures)} maç** var, **{len(league_stats)} farklı** ligde!")
+                st.success(f"🎯 Bugün popüler liglerde **{len(fixtures)} maç** var, **{len(league_stats)} farklı** ligde!")
                 
                 # Tablo olarak göster
                 import pandas as pd
@@ -807,14 +829,14 @@ def build_home_view(model_params):
                 ])
                 st.dataframe(df, use_container_width=True, hide_index=True)
             else:
-                st.warning("Bugün için maç verisi bulunamadı.")
+                st.warning("Bugün için popüler liglerde maç verisi bulunamadı.")
     
     # 🆕 Günün Top 5 Güvenli Tahmini
     st.subheader("🌟 Günün Top 5 Güvenli Tahmini")
     
     # Admin badge
     if is_admin:
-        st.info("🔑 **ADMIN MODU AKTIF:** TÜM ligler taranıyor (100+ maç analiz, sınırsız lig desteği)", icon="👑")
+        st.info("🔑 **ADMIN MODU AKTIF:** Popüler 100 lig taranıyor (100 maç analiz, optimize edilmiş performans)", icon="👑")
     
     # Bildirim banner'ı
     top_predictions = []
@@ -1285,6 +1307,44 @@ def main():
                             
                             # Kullanıcı adını güncelle (eğer girilmişse)
                             if new_username_reset and new_username_reset != found_user:
+                                # IP hakkını transfer et
+                                try:
+                                    ip_assignments = api_utils._get_ip_assignments()
+                                    # Eski kullanıcıya atanmış IP'yi bul
+                                    old_user_ip = None
+                                    for ip, assigned_user in ip_assignments.items():
+                                        if assigned_user == found_user:
+                                            old_user_ip = ip
+                                            break
+                                    
+                                    # IP hakkını yeni kullanıcıya transfer et
+                                    if old_user_ip:
+                                        api_utils._set_ip_assignment(old_user_ip, new_username_reset)
+                                        st.info(f"🔄 IP hakkı ({old_user_ip}) '{found_user}' hesabından '{new_username_reset}' hesabına transfer edildi.")
+                                    
+                                    # user_usage.json'dan eski kullanıcı verilerini yeniye kopyala
+                                    usage_data = api_utils._read_usage_file()
+                                    if found_user in usage_data:
+                                        # Eski kullanıcının kullanım verilerini yeniye kopyala
+                                        usage_data[new_username_reset] = usage_data[found_user].copy()
+                                        # Eski kullanıcıyı sil
+                                        del usage_data[found_user]
+                                        
+                                        # Limit ayarlarını da transfer et
+                                        if '_limits' in usage_data and found_user in usage_data['_limits']:
+                                            usage_data['_limits'][new_username_reset] = usage_data['_limits'][found_user]
+                                            del usage_data['_limits'][found_user]
+                                        
+                                        if '_monthly_limits' in usage_data and found_user in usage_data['_monthly_limits']:
+                                            usage_data['_monthly_limits'][new_username_reset] = usage_data['_monthly_limits'][found_user]
+                                            del usage_data['_monthly_limits'][found_user]
+                                        
+                                        # Kaydet
+                                        api_utils._write_usage_file(usage_data)
+                                        st.info(f"📊 API kullanım verileri '{found_user}' hesabından '{new_username_reset}' hesabına transfer edildi.")
+                                except Exception as e:
+                                    st.warning(f"⚠️ IP hakkı transferi sırasında uyarı: {e}")
+                                
                                 # Yeni kullanıcı adıyla yeni entry oluştur
                                 config['credentials']['usernames'][new_username_reset] = config['credentials']['usernames'][found_user].copy()
                                 config['credentials']['usernames'][new_username_reset]['password'] = hashed_pw
