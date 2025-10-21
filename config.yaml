@@ -2,7 +2,7 @@ admin_users:
 - sivrii1940
 - admin
 cookie:
-  expiry_days: 30
+  expiry_days: 90  # 90 gün boyunca login kalacak
   key: random_signature_key_burayi_degistir
   name: random_cookie_name_burayi_degistir
 credentials:
@@ -72,3 +72,5 @@ credentials:
       name: Yeni Kullanıcı
       password: $2b$12$lsjs6McIXW4mIbmE.YeBvegGtWfDiRZi0rCRsP1yfM1rHBwdikvnm
       tier: ücretsiz
+preauthorized:
+  emails: []

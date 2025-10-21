@@ -592,6 +592,7 @@ def display_parameters_tab(params: Dict, team_names: Dict):
         st.metric("Tempo Endeksi", f"x{params.get('pace_index', 1.0):.2f}")
         st.metric("Elo Farkı", f"{params.get('elo_diff', 0):+.0f}")
 
+@st.cache_data(ttl=86400)  # 24 saat cache - API tasarrufu
 def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]:
     try:
         id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
@@ -1232,7 +1233,7 @@ def main():
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
-        auto_hash=(not any_hashed)
+        auto_hash=False  # Hash'leri önceden yaptık, her seferinde tekrar hash'leme
     )
 
     admin_users = config.get('admin_users', []) if isinstance(config, dict) else []
