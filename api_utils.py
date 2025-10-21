@@ -4,10 +4,25 @@
 import requests
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime, date
-import streamlit as st
 import json
 import os
 import yaml
+
+# Streamlit'i optional yap (GitHub Actions için)
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    HAS_STREAMLIT = False
+    # Dummy cache decorator for non-streamlit environments
+    def cache_data(ttl=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    class st:
+        cache_data = staticmethod(cache_data)
+        session_state = {}
 
 # --- API LİMİT KONTROL MEKANİZMASI ---
 
@@ -167,7 +182,7 @@ def set_user_daily_limit(username: str, limit: int):
     _write_usage_file(data)
     # Log admin action (best-effort). If running inside Streamlit, read current admin username.
     try:
-        admin_user = st.session_state.get('username') if hasattr(st, 'session_state') else 'system'
+        admin_user = st.session_state.get('username') if HAS_STREAMLIT and hasattr(st, 'session_state') else 'system'
     except Exception:
         admin_user = 'system'
     try:
@@ -203,7 +218,7 @@ def set_user_monthly_limit(username: str, limit: int):
             pass
     _write_usage_file(data)
     try:
-        admin_user = st.session_state.get('username') if hasattr(st, 'session_state') else 'system'
+        admin_user = st.session_state.get('username') if HAS_STREAMLIT and hasattr(st, 'session_state') else 'system'
     except Exception:
         admin_user = 'system'
     try:
@@ -371,6 +386,8 @@ def set_user_tier(username: str, tier: str) -> Tuple[bool, Optional[str]]:
 def check_api_limit() -> Tuple[bool, Optional[str]]:
     """API isteği yapmadan önce limiti kontrol eder ve gerekirse sayacı artırır."""
     try:
+        if not HAS_STREAMLIT:
+            return True, None  # GitHub Actions için bypass
         if "authentication_status" not in st.session_state or not st.session_state["authentication_status"]:
             return False, "API isteği yapmak için giriş yapmalısınız."
     except Exception:
