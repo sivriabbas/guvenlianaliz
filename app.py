@@ -686,38 +686,62 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
     today = date.today()
     
-    # DAHA FAZLA LİG EKLE - sadece 3 lig yetmeyebilir
-    popular_ids = [203, 39, 140, 135, 78, 61]  # Süper Lig, Premier, La Liga, Serie A, Bundesliga, Ligue 1
+    # Admin kullanıcı mı kontrol et
+    is_admin = st.session_state.get('username', '') in ADMIN_USERS
+    
+    if is_admin:
+        # ADMIN: TÜM LİGLERİ TARA (daha fazla maç analiz et)
+        all_league_ids = list(INTERESTING_LEAGUES.keys())
+        print(f"🔑 ADMIN MODU: {len(all_league_ids)} lig taranıyor...")
+        selected_ids = all_league_ids[:30]  # İlk 30 lig (API limiti korumak için)
+        max_matches = 50  # Daha fazla maç
+    else:
+        # NORMAL KULLANICI: Sadece popüler 6 lig
+        selected_ids = [203, 39, 140, 135, 78, 61]  # Süper Lig, Premier, La Liga, Serie A, Bundesliga, Ligue 1
+        print(f"👤 Normal kullanıcı: {len(selected_ids)} popüler lig taranıyor...")
+        max_matches = 20
     
     # Bugünün maçlarını çek - KULLANICI LİMİTİNİ TÜKETME
-    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, popular_ids, today, bypass_limit_check=True)
+    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today, bypass_limit_check=True)
     
     if error:
         print(f"❌ API Hatası: {error}")  # DEBUG
         return []
     
     if not fixtures:
-        print(f"⚠️ Bugün {len(popular_ids)} popüler ligde maç bulunamadı!")  # DEBUG
+        print(f"⚠️ Bugün {len(selected_ids)} ligde maç bulunamadı!")  # DEBUG
         return []
     
-    print(f"✅ Bugün {len(fixtures)} maç bulundu, analiz ediliyor...")  # DEBUG
+    print(f"✅ Bugün {len(fixtures)} maç bulundu, {max_matches} tanesi analiz ediliyor...")  # DEBUG
     
-    # İLK 20 MAÇI ANALİZ ET (daha fazla şans)
+    # Liglere göre grupla
+    leagues_with_matches = {}
+    for fixture in fixtures:
+        league_name = fixture.get('league_name', 'Bilinmeyen Lig')
+        if league_name not in leagues_with_matches:
+            leagues_with_matches[league_name] = 0
+        leagues_with_matches[league_name] += 1
+    
+    print(f"📊 Bugün maç olan ligler: {len(leagues_with_matches)}")
+    for league, count in sorted(leagues_with_matches.items(), key=lambda x: x[1], reverse=True)[:10]:
+        print(f"   - {league}: {count} maç")
+    
+    # Maçları analiz et
     analyzed_fixtures = []
-    for idx, fixture in enumerate(fixtures[:20], 1):
+    for idx, fixture in enumerate(fixtures[:max_matches], 1):
         try:
             summary = analyze_fixture_summary(fixture, model_params)
             if summary:
                 confidence = summary.get('AI Güven Puanı', 0)
-                print(f"  {idx}. {summary['Ev Sahibi']} vs {summary['Deplasman']}: Güven={confidence}")  # DEBUG
-                if confidence >= 40.0:  # EŞİK DAHA DA DÜŞÜRÜLDÜ: 55 → 40 (her gün tahmin göster)
+                print(f"  {idx}. {summary['Ev Sahibi']} vs {summary['Deplasman']}: Güven={confidence:.1f}%")  # DEBUG
+                if confidence >= 40.0:  # EŞİK: %40
                     analyzed_fixtures.append(summary)
-                    print(f"    ✅ EKLENDI (Güven: {confidence})")  # DEBUG
+                    print(f"    ✅ EKLENDI (Güven: {confidence:.1f}%)")  # DEBUG
         except Exception as e:
             print(f"  ❌ Hata: {str(e)}")  # DEBUG
             continue
     
-    print(f"🎯 Toplam {len(analyzed_fixtures)} yüksek güvenli tahmin bulundu!")  # DEBUG
+    print(f"🎯 Toplam {len(analyzed_fixtures)} uygun tahmin bulundu!")  # DEBUG
     
     # Güvene göre sırala ve top N'i döndür
     analyzed_fixtures.sort(key=lambda x: x['AI Güven Puanı'], reverse=True)
@@ -745,8 +769,46 @@ def build_home_view(model_params):
     if LEAGUE_LOAD_ERROR:
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
     
+    # Admin kontrolü
+    is_admin = st.session_state.get('username', '') in ADMIN_USERS
+    
+    # 📊 Bugün Hangi Liglerde Maç Var? (Sadece Admin)
+    if is_admin:
+        with st.expander("📊 Bugün Hangi Liglerde Maç Var? (Admin)", expanded=False):
+            today = date.today()
+            all_league_ids = list(INTERESTING_LEAGUES.keys())
+            
+            with st.spinner("Bugünün tüm maçları taranıyor..."):
+                fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, all_league_ids[:50], today, bypass_limit_check=True)
+            
+            if fixtures:
+                # Liglere göre grupla
+                league_stats = {}
+                for fixture in fixtures:
+                    league_name = fixture.get('league_name', 'Bilinmeyen Lig')
+                    league_id = fixture.get('league_id')
+                    if league_name not in league_stats:
+                        league_stats[league_name] = {'count': 0, 'id': league_id}
+                    league_stats[league_name]['count'] += 1
+                
+                st.success(f"🎯 Bugün **{len(fixtures)} maç** var, **{len(league_stats)} farklı** ligde!")
+                
+                # Tablo olarak göster
+                import pandas as pd
+                df = pd.DataFrame([
+                    {'Lig': name, 'Maç Sayısı': stats['count'], 'Lig ID': stats['id']}
+                    for name, stats in sorted(league_stats.items(), key=lambda x: x[1]['count'], reverse=True)
+                ])
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.warning("Bugün için maç verisi bulunamadı.")
+    
     # 🆕 Günün Top 5 Güvenli Tahmini
     st.subheader("🌟 Günün Top 5 Güvenli Tahmini")
+    
+    # Admin badge
+    if is_admin:
+        st.info("🔑 **ADMIN MODU AKTIF:** Tüm ligler taranıyor (30+ lig, 50 maç analiz)", icon="👑")
     
     # Bildirim banner'ı
     top_predictions = []
