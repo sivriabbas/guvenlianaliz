@@ -1,0 +1,14 @@
+# Python'a özgü dosyalar
+__pycache__/
+*.pyc
+
+# Sanal Ortam (Virtual Environment)
+.venv/
+
+# Editör / IDE Konfigürasyon Dosyaları
+.vscode/
+.idea/
+
+# Uygulama Verileri ve Gizli Bilgiler (Versiyon kontrolüne eklenmemeli)
+user_usage.json
+.streamlit/secrets.toml

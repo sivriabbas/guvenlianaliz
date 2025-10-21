@@ -2,3 +2,6 @@ streamlit
 requests
 pandas
 plotly
+streamlit-authenticator
+PyYAML
+toml

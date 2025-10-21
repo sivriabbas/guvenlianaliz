@@ -1,0 +1,74 @@
+admin_users:
+- sivrii1940
+- admin
+cookie:
+  expiry_days: 30
+  key: random_signature_key_burayi_degistir
+  name: random_cookie_name_burayi_degistir
+credentials:
+  usernames:
+    ci_test_user:
+      email: ci@test.local
+      name: CI Test
+      password: $2b$12$kfw5knkg4FmSe3FAYRdt3eImYdwwO/br/BGcAcL/cQDPJdcvctmI6
+      tier: ücretsiz
+    demo_user:
+      email: demo@mail.com
+      name: Demo
+      password: $2b$12$dAIq1MpB7J2U4T4GNOPCt.qDvvUQlwxO.jgzmhAgAQI/1GvxJ5Z6a
+      tier: ücretsiz
+    jsmith:
+      email: jsmith@gmail.com
+      name: John Smith
+      password: $2b$12$Z1pTPJ6fa7Hm3gldom3QaOxoKAHelq3fEjI3I1w6ATivHP/Z4WQf.
+      tier: ücretli
+    rform:
+      email: rform@gmail.com
+      name: Rebecca Form
+      password: $2b$12$G.SpgKYAvaCQ8AiXw9OxvuyFXgKTk0Ftq6c2Dxg5A8wDIp6rqxv4m
+      tier: ücretsiz
+    sivrii1:
+      email: sivrii1940@gmail.com
+      name: mustafa yılmaz
+      password: $2b$12$OMs6BExTgMDEyQ6VZs9qrObNtW8Nl/CnrcCUHKIqfSJ1d0v/D4h3W
+      tier: ücretsiz
+    sivrii1940:
+      email: sivrii1940@gmail.com
+      name: mustafa yılmaz
+      password: $2b$12$jVRnV9OD7zeMJHA89zwo5uiVsfrBun9Hm8ttKivB1FKrmyG349iX6
+      tier: ücretli
+    sivrii2:
+      email: sivrii1940@gmail.com
+      name: mustafa yılmaz
+      password: $2b$12$vMp.uttd2notFngVhcG0nehWvD6xb/hFEqUUV9mO7njUNfjfPRkEe
+      tier: ücretsiz
+    sivrii3:
+      email: sivrii1940@gmail.com
+      name: mustafa yılmaz
+      password: $2b$12$oE5bmd.bhMAQLpIlLSOvsu3S0UqgLILulw2DWudYp4oFcRdz1FHCK
+      tier: ücretsiz
+    sivrii4:
+      email: sivrii1940@gmail.com
+      name: mustafa yılmaz
+      password: $2b$12$sOoVmqO4yNBRtDWQs41fJOU3az4THOAXdqoXAGmDet4siWW103c8u
+      tier: ücretsiz
+    sivrii4152:
+      email: sivrii1940@gmail.com
+      name: mustafa yılmaz
+      password: $2b$12$ZfBAXlwYh5QMV386BiCs4uDaw0vm/2oGxL9mndmuKAijCxAYm5jXO
+      tier: ücretsiz
+    sivrii8:
+      email: sivri1940@gmail.com
+      name: merve yılmaz
+      password: $2b$12$t.GLOch6ppaVrk3Uei7mC.eRIqHn2FXy4jQ4QMhWjqsXaJGlD.BVC
+      tier: ücretsiz
+    sivrii9:
+      email: sivri4152@gmail.com
+      name: sivrii4152
+      password: $2b$12$uiciUCIN.5hUalYwxly.u.leG1M9uXik3SxJaT/n3mDHNThxbrsRG
+      tier: ücretli
+    yeni_kullanici:
+      email: yeni@mail.com
+      name: Yeni Kullanıcı
+      password: $2b$12$lsjs6McIXW4mIbmE.YeBvegGtWfDiRZi0rCRsP1yfM1rHBwdikvnm
+      tier: ücretsiz
