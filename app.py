@@ -77,18 +77,20 @@ def display_logo(sidebar=False, size="medium"):
     """Logoyu gösterir
     Args:
         sidebar: Sidebar'da mı gösterilecek
-        size: Logo boyutu - small (50px), medium (100px), large (150px)
+        size: Logo boyutu - small (80px), medium (120px), large (180px)
     """
     logo_base64 = get_logo_base64()
     if not logo_base64:
         return
     
-    sizes = {"small": 50, "medium": 100, "large": 150}
-    width = sizes.get(size, 100)
+    sizes = {"small": 80, "medium": 120, "large": 180}
+    width = sizes.get(size, 120)
     
     logo_html = f"""
-    <div style='text-align: center; margin: 20px 0;'>
-        <img src='data:image/svg+xml;base64,{logo_base64}' width='{width}' style='border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'>
+    <div style='text-align: center; margin: 30px 0; padding: 20px;'>
+        <img src='data:image/svg+xml;base64,{logo_base64}' width='{width}' 
+             style='border-radius: 50%; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); 
+                    border: 4px solid rgba(102, 126, 234, 0.2); transition: transform 0.3s ease;'>
     </div>
     """
     
@@ -1829,18 +1831,26 @@ def main():
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
         
-        # Logo ve Başlık
-        display_logo(sidebar=False, size="large")
-        st.markdown("""
-        <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                   -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
-                   background-clip: text; font-size: 3em; margin: 20px 0;'>
-            ⚽ Futbol Analiz AI
-        </h1>
-        <p style='text-align: center; font-size: 1.2em; color: #666; margin-bottom: 40px;'>
-            Yapay Zeka Destekli Maç Tahmin Platformu
-        </p>
-        """, unsafe_allow_html=True)
+        # Üst boşluk
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Logo ve Başlık - Daha büyük ve etkileyici
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            display_logo(sidebar=False, size="large")
+            st.markdown("""
+            <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%, #f093fb 100%); 
+                       -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+                       background-clip: text; font-size: 3.5em; margin: 0; font-weight: 800;'>
+                ⚽ Futbol Analiz AI
+            </h1>
+            <p style='text-align: center; font-size: 1.3em; color: #667eea; margin: 15px 0; font-weight: 600;'>
+                Yapay Zeka Destekli Maç Tahmin Platformu
+            </p>
+            <p style='text-align: center; font-size: 1em; color: #999; margin: 10px 0 30px 0;'>
+                🎯 Profesyonel Analiz | 📊 Gerçek Zamanlı Veriler | 🤖 Akıllı Tahminler
+            </p>
+            """, unsafe_allow_html=True)
         
         # Şifre/Kullanıcı Adı Unuttum Bölümü
         st.markdown("---")
@@ -2014,14 +2024,22 @@ def main():
         # ============================================================================
         
         # Logo
-        display_logo(sidebar=True, size="small")
+        display_logo(sidebar=True, size="medium")
         
         # Hoşgeldin Başlığı
         st.sidebar.markdown(f"""
         <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center;'>
+                    padding: 20px; border-radius: 12px; margin-bottom: 10px; text-align: center;'>
             <h2 style='color: white; margin: 0;'>👋 Hoş Geldin</h2>
             <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 1.1em;'>{st.session_state['name']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Branding
+        st.sidebar.markdown("""
+        <div style='text-align: center; margin: 10px 0 20px 0;'>
+            <p style='color: #667eea; font-weight: 600; font-size: 0.9em; margin: 0;'>⚽ Futbol Analiz AI</p>
+            <p style='color: #999; font-size: 0.75em; margin: 5px 0 0 0;'>Yapay Zeka Destekli Tahminler</p>
         </div>
         """, unsafe_allow_html=True)
         
