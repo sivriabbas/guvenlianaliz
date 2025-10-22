@@ -1454,7 +1454,8 @@ def build_dashboard_view(model_params: Dict):
     selected = st.selectbox("Detaylı analiz için maç seçin:", options, index=None, placeholder="Tablodan bir maç seçin...")
     if selected:
         row = df[df.apply(lambda r: f"{r['Saat']} | {r['Lig']} | {r['Ev Sahibi']} vs {r['Deplasman']}" == selected, axis=1)].iloc[0]
-        team_a, team_b = {'id': row['home_id'], 'name': row['Ev Sahibi']}, {'id': row['away_id'], 'name': row['Deplasman']}
+        team_a = {'id': row['home_id'], 'name': row['Ev Sahibi'], 'logo': row.get('home_logo', '')}
+        team_b = {'id': row['away_id'], 'name': row['Deplasman'], 'logo': row.get('away_logo', '')}
         with st.spinner(f"**{team_a['name']} vs {team_b['name']}** analizi yapılıyor..."):
             analyze_and_display(team_a, team_b, row['fixture_id'], model_params)
 
@@ -1524,12 +1525,12 @@ def build_manual_view(model_params: Dict):
             elif not teams_response:
                 st.info("Bu lig için takım bilgisi bulunamadı.")
             else:
-                team_pairs = sorted([(item['team']['name'], item['team']['id']) for item in teams_response], key=lambda x: x[0])
-                sentinel = [("Takım seçin", None)]
+                team_pairs = sorted([(item['team']['name'], item['team']['id'], item['team'].get('logo', '')) for item in teams_response], key=lambda x: x[0])
+                sentinel = [("Takım seçin", None, '')]
                 base_options = sentinel + team_pairs
 
-                def _format_team_option(option: tuple[str, Optional[int]]) -> str:
-                    name, team_id = option
+                def _format_team_option(option: tuple[str, Optional[int], str]) -> str:
+                    name, team_id, logo = option
                     return name if team_id is None else f"{name} ({team_id})"
 
                 home_choice = st.selectbox(
@@ -1538,7 +1539,7 @@ def build_manual_view(model_params: Dict):
                     format_func=_format_team_option,
                     key="manual_home_select"
                 )
-                home_team = {'name': home_choice[0], 'id': home_choice[1]} if home_choice[1] else None
+                home_team = {'name': home_choice[0], 'id': home_choice[1], 'logo': home_choice[2]} if home_choice[1] else None
 
                 away_candidates = sentinel + [opt for opt in team_pairs if not home_team or opt[1] != home_team['id']]
                 away_choice = st.selectbox(
@@ -1547,7 +1548,7 @@ def build_manual_view(model_params: Dict):
                     format_func=_format_team_option,
                     key="manual_away_select"
                 )
-                away_team = {'name': away_choice[0], 'id': away_choice[1]} if away_choice[1] else None
+                away_team = {'name': away_choice[0], 'id': away_choice[1], 'logo': away_choice[2]} if away_choice[1] else None
 
                 disabled = not (home_team and away_team)
                 if st.button("Seçili Takımlarla Analiz Et", use_container_width=True, disabled=disabled):
