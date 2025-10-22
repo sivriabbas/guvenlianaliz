@@ -721,16 +721,40 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
         st.error(f"❌ {fixture.get('home_name', '?')} vs {fixture.get('away_name', '?')}: Hata - {str(e)}")
         return None
 
+@st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache - tekrar analiz engellensin
 def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, model_params: Dict):
     id_a, name_a, id_b, name_b = team_a_data['id'], team_a_data['name'], team_b_data['id'], team_b_data['name']
     logo_a = team_a_data.get('logo', '')
     logo_b = team_b_data.get('logo', '')
     
-    # Başlık logoları ile
-    home_with_logo = display_team_with_logo(name_a, logo_a, size=50)
-    away_with_logo = display_team_with_logo(name_b, logo_b, size=50)
-    st.markdown(f"<h2>⚽ {home_with_logo} vs {away_with_logo}</h2>", unsafe_allow_html=True)
-    st.caption("Detaylı Maç Analizi")
+    # Modern Header Card
+    st.markdown(f"""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 24px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);'>
+        <div style='display: flex; align-items: center; justify-content: space-between;'>
+            <div style='display: flex; align-items: center; gap: 16px;'>
+                <img src='{logo_a}' width='56' style='border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>
+                <div>
+                    <h2 style='color: white; margin: 0; font-size: 1.8em;'>{name_a}</h2>
+                    <p style='color: rgba(255,255,255,0.8); margin: 4px 0 0 0; font-size: 0.9em;'>Ev Sahibi</p>
+                </div>
+            </div>
+            <div style='text-align: center; padding: 0 24px;'>
+                <span style='color: white; font-size: 2.5em; font-weight: 700;'>VS</span>
+            </div>
+            <div style='display: flex; align-items: center; gap: 16px;'>
+                <div style='text-align: right;'>
+                    <h2 style='color: white; margin: 0; font-size: 1.8em;'>{name_b}</h2>
+                    <p style='color: rgba(255,255,255,0.8); margin: 4px 0 0 0; font-size: 0.9em;'>Deplasman</p>
+                </div>
+                <img src='{logo_b}' width='56' style='border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.2);'>
+            </div>
+        </div>
+        <p style='color: rgba(255,255,255,0.9); margin: 16px 0 0 0; text-align: center; font-size: 1.1em; font-weight: 500;'>
+            ⚽ Detaylı Maç Analizi
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a)
     if not league_info: st.error("Lig bilgisi alınamadı."); return
@@ -758,6 +782,31 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
         processed_h2h = analysis_logic.process_h2h_data(h2h_matches, id_a)
 
     team_names = {'a': name_a, 'b': name_b}; team_ids = {'a': id_a, 'b': id_b}
+    
+    # Modern Tab Tasarımı
+    st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #1e1e1e;
+        padding: 8px;
+        border-radius: 12px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        border-radius: 8px;
+        padding: 0 24px;
+        background-color: #2d2d2d;
+        color: #aaa;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "⚙️ Analiz Parametreleri"]
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(tab_list)
 
@@ -769,7 +818,7 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab6: display_referee_tab(processed_referee_stats)
     with tab7: display_parameters_tab(analysis['params'], team_names)
 
-@st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache
+@st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache
 def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
     today = date.today()
@@ -834,6 +883,7 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     analyzed_fixtures.sort(key=lambda x: x['AI Güven Puanı'], reverse=True)
     return analyzed_fixtures[:top_n]
 
+@st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache - tekrar analiz engellendi
 def analyze_fixture_by_id(fixture_id: int, home_id: int, away_id: int, model_params: Dict):
     """Fixture ID ile detaylı analiz yapar"""
     try:
@@ -843,31 +893,24 @@ def analyze_fixture_by_id(fixture_id: int, home_id: int, away_id: int, model_par
             return
         home_team = fixture_details['teams']['home']
         away_team = fixture_details['teams']['away']
-        # Görsel olarak modern ve hizalı analiz kartı
-        st.markdown("""
-        <div style='background:#181c20;padding:32px 24px 24px 24px;border-radius:18px;box-shadow:0 2px 12px #0002;'>
-            <div style='display:flex;align-items:center;justify-content:space-between;'>
-                <div style='display:flex;align-items:center;'>
-                    <img src='{}' width='48' style='margin-right:12px;border-radius:50%;border:2px solid #fff;'>
-                    <span style='font-size:1.5em;font-weight:700;color:#fff;'>{}</span>
+        
+        # Modern başlık kartı
+        st.markdown(f"""
+        <div style='background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); 
+                    padding: 20px; border-radius: 14px; margin: 16px 0; box-shadow: 0 3px 16px rgba(0,0,0,0.25);'>
+            <div style='display: flex; align-items: center; justify-content: center; gap: 24px;'>
+                <div style='text-align: center;'>
+                    <img src='{home_team.get("logo","")}' width='48' style='border-radius: 50%; border: 2px solid white;'>
+                    <p style='color: white; margin: 8px 0 0 0; font-weight: 600;'>{home_team.get("name","")}</p>
                 </div>
-                <span style='font-size:1.2em;color:#bbb;font-weight:500;'>vs</span>
-                <div style='display:flex;align-items:center;'>
-                    <img src='{}' width='48' style='margin-right:12px;border-radius:50%;border:2px solid #fff;'>
-                    <span style='font-size:1.5em;font-weight:700;color:#fff;'>{}</span>
+                <span style='color: white; font-size: 1.8em; font-weight: 700;'>VS</span>
+                <div style='text-align: center;'>
+                    <img src='{away_team.get("logo","")}' width='48' style='border-radius: 50%; border: 2px solid white;'>
+                    <p style='color: white; margin: 8px 0 0 0; font-weight: 600;'>{away_team.get("name","")}</p>
                 </div>
-            </div>
-            <div style='margin-top:18px;display:flex;justify-content:space-between;'>
-                <div style='font-size:1.1em;color:#eee;'>Tarih: <b>{}</b></div>
-                <div style='font-size:1.1em;color:#eee;'>Saat: <b>{}</b></div>
-                <div style='font-size:1.1em;color:#eee;'>Lig: <b>{}</b></div>
             </div>
         </div>
-        """.format(
-            home_team.get('logo',''), home_team.get('name',''),
-            away_team.get('logo',''), away_team.get('name',''),
-            fixture_details.get('date',''), fixture_details.get('time',''), fixture_details.get('league','')
-        ), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         st.markdown("---")
         # Eski detaylı analiz fonksiyonu
         analyze_and_display(home_team, away_team, fixture_id, model_params)
@@ -1375,6 +1418,10 @@ def main():
     
     # Admin listesini session_state'e kaydet (API kontrolü için gerekli)
     st.session_state['admin_users'] = admin_users
+    
+    # F5/geri tuşunda çıkış olmaması için authenticated durumu koru
+    if st.session_state.get('authentication_status') is None and 'username' in st.session_state and st.session_state.get('username'):
+        st.session_state['authentication_status'] = True
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
         authenticator.login()
