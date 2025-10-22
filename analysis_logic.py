@@ -598,15 +598,14 @@ def calculate_corner_probabilities(home_corners_avg: float, away_corners_avg: fl
     Korner tahminlerini hesaplar - GELİŞTİRİLMİŞ GERÇEKÇI MODEL.
     
     Args:
-        home_corners_avg: Ev sahibi takımın ortalama korner sayısı (hem kazandıkları hem yedikleri)
-        away_corners_avg: Deplasman takımının ortalama korner sayısı
-        league_avg_corners: Lig ortalaması korner sayısı (varsayılan 10.5)
+        home_corners_avg: Ev sahibi takımın ortalama KAZANDIĞI korner sayısı
+        away_corners_avg: Deplasman takımının ortalama KAZANDIĞI korner sayısı
+        league_avg_corners: Lig ortalaması toplam korner sayısı (varsayılan 10.5)
     
     Gerçekçi faktörler:
     - Ev sahibi genelde %55-60 korner kazanır
     - Güçlü takımlar daha fazla korner kazanır (hücum baskısı)
     - Zayıf takımlar daha fazla korner yer (savunmaya çekilir)
-    - Maç durumu (önde/geride olma) korner sayısını etkiler
     """
     # Varsayılan değerler
     if home_corners_avg == 0:
@@ -614,22 +613,18 @@ def calculate_corner_probabilities(home_corners_avg: float, away_corners_avg: fl
     if away_corners_avg == 0:
         away_corners_avg = league_avg_corners * 0.45
     
-    # Gerçekçi beklenen toplam korner hesaplama
-    # Ev sahibi avantajı: %55 ev sahibi, %45 deplasman
-    home_factor = 0.55
-    away_factor = 0.45
-    
-    # Takım gücüne göre ayarlama (daha hücum odaklı takımlar daha fazla korner kazanır)
-    expected_total = (home_corners_avg * home_factor + away_corners_avg * away_factor) * 2
+    # Beklenen toplam korner = her iki takımın kazandığı kornerler toplamı
+    expected_total = home_corners_avg + away_corners_avg
     
     # Lig ortalaması ile normalize et (aşırı sapmaları önle)
-    if expected_total < league_avg_corners * 0.6:
-        expected_total = league_avg_corners * 0.7  # En az %70'i
-    elif expected_total > league_avg_corners * 1.5:
-        expected_total = league_avg_corners * 1.4  # En fazla %140'ı
+    # Gerçekçi aralık: 6-15 korner
+    if expected_total < 6.0:
+        expected_total = 6.5  # Minimum gerçekçi değer
+    elif expected_total > 15.0:
+        expected_total = 14.0  # Maximum gerçekçi değer
     
-    # Gerçekçi standart sapma (kornerlerde daha fazla varyans var)
-    std_dev = expected_total * 0.35  # %35 standart sapma
+    # Gerçekçi standart sapma
+    std_dev = expected_total * 0.30  # %30 standart sapma
     
     # Normal dağılıma yakın Poisson kullan (kornerlerde daha gerçekçi)
     over_8_5 = 0.0
@@ -1436,20 +1431,19 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     away_corners_for = weighted_stats_b.get('away', {}).get('w_avg_corners_for', 0)
     away_corners_against = weighted_stats_b.get('away', {}).get('w_avg_corners_against', 0)
     
-    # 2. Eğer gerçek veri varsa kullan (toplam korner = kazanılan + karşıya verilen)
-    if home_corners_for > 0 or home_corners_against > 0:
-        # Ev sahibinin toplam korner ortalaması (kendi + rakibin)
-        home_corners_avg = home_corners_for + home_corners_against
+    # 2. Eğer gerçek veri varsa kullan - SADECE KAZANILAN KORNERLER
+    # NOT: calculate_corner_probabilities fonksiyonu zaten toplamı hesaplıyor
+    if home_corners_for > 0:
+        home_corners_avg = home_corners_for  # Ev sahibinin KAZANDIĞI kornerler
     else:
-        # Gerçek veri yoksa tahmini hesaplama - konservative approach
-        home_corners_avg = 3.5 + (home_attack_idx * 1.2) + (away_def_idx * 0.8)
+        # Gerçek veri yoksa tahmini hesaplama
+        home_corners_avg = 2.5 + (home_attack_idx * 0.8) + (away_def_idx * 0.5)
     
-    if away_corners_for > 0 or away_corners_against > 0:
-        # Deplasman takımının toplam korner ortalaması
-        away_corners_avg = away_corners_for + away_corners_against
+    if away_corners_for > 0:
+        away_corners_avg = away_corners_for  # Deplasmanın KAZANDIĞI kornerler
     else:
-        # Gerçek veri yoksa tahmini hesaplama - konservative approach
-        away_corners_avg = 3.0 + (away_attack_idx * 1.2) + (home_def_idx * 0.8)
+        # Gerçek veri yoksa tahmini hesaplama
+        away_corners_avg = 2.0 + (away_attack_idx * 0.8) + (home_def_idx * 0.5)
     
     # 3. Lig ortalamasına göre normalize et (10-11 korner normal)
     league_avg_corners = 10.5
