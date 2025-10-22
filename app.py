@@ -819,14 +819,10 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab7: display_parameters_tab(analysis['params'], team_names)
 
 @st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache
-def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
+def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_user: bool, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
-    today = date.today()
     
-    # Admin kullanıcı mı kontrol et
-    is_admin = st.session_state.get('username', '') in ADMIN_USERS
-    
-    if is_admin:
+    if is_admin_user:
         # ADMIN: POPÜLER 100 LİG TARA (performans optimizasyonu)
         selected_ids = TOP_100_POPULAR_LEAGUES
         print(f"🔑 ADMIN MODU: Popüler 100 lig taranıyor...")
@@ -838,7 +834,7 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
         max_matches = 20
     
     # Bugünün maçlarını çek - KULLANICI LİMİTİNİ TÜKETME
-    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today, bypass_limit_check=True)
+    fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today_date, bypass_limit_check=True)
     
     if error:
         print(f"❌ API Hatası: {error}")  # DEBUG
@@ -972,7 +968,8 @@ def build_home_view(model_params):
     # Bildirim banner'ı
     top_predictions = []
     with st.spinner("Bugünün en güvenli tahminleri hesaplanıyor..."):
-        top_predictions = get_top_predictions_today(model_params)
+        today = date.today()
+        top_predictions = get_top_predictions_today(model_params, today, is_admin)
     
     if top_predictions and len(top_predictions) > 0:
         # Uyarı banner'ı
