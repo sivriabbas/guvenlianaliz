@@ -506,6 +506,11 @@ def get_referee_stats(api_key: str, base_url: str, referee_id: int, season: int)
 
 @st.cache_data(ttl=86400)
 def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: int, season: int, skip_limit: bool = False) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Takım istatistiklerini getirir.
+    NOT: skip_limit parametresi cache key'ine dahildir. Eğer skip_limit=True ve skip_limit=False 
+    için farklı cache oluşmasını istemiyorsanız, SADECE bir değerle çağırın.
+    """
     params = {'team': team_id, 'league': league_id, 'season': season}
     return make_api_request(api_key, base_url, "teams/statistics", params, skip_limit=skip_limit)
 

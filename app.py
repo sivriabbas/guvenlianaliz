@@ -1071,11 +1071,24 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: b
     use_system_api=True: Sistem API'si kullanır (kullanıcı hakkı tüketmez)
     use_system_api=False: Kullanıcı API'si kullanır
     
-    NOT: use_system_api parametresi cache key'e dahildir
+    NOT: use_system_api parametresi cache key'e dahildir.
+    ÖNEMLI: Artık tüm API çağrıları skip_limit=True ile yapılıyor (API hakkı alt seviyede tüketilmiyor).
+    Kullanıcı API hakkı sadece use_system_api=False ise ÜST SEVİYEDE tüketilir.
     """
+    # KULLANICI API HAKKI YÖNETİMİ - ÜST SEVİYEDE
+    if not use_system_api:
+        # Detaylı analiz için kullanıcı API hakkı tüket
+        can_request, error_msg = api_utils.check_api_limit()
+        if not can_request:
+            st.error(f"API Limit Hatası: {error_msg}")
+            return None
+        # Kullanıcı hakkını tüket
+        api_utils.increment_api_usage()
+    
     try:
         id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
-        league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=use_system_api)
+        # Artık HER ZAMAN skip_limit=True - API hakkı üst seviyede yönetiliyor
+        league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=True)
         
         # Eğer takımdan lig bilgisi alınamazsa, fixture'daki lig bilgisini kullan
         if not league_info and 'league_id' in fixture:
@@ -1087,7 +1100,8 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: b
         if not league_info: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Lig bilgisi alınamadı")
             return None
-        analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture['match_id'], league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=use_system_api)
+        # Artık HER ZAMAN skip_api_limit=True - API hakkı üst seviyede yönetiliyor
+        analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture['match_id'], league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=True)
         if not analysis: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Analiz verisi oluşturulamadı")
             return None
@@ -1126,6 +1140,18 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: b
 
 @st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache - tekrar analiz engellensin
 def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, model_params: Dict, league_id: int = None, season: int = None):
+    """
+    Detaylı maç analizi yapar ve gösterir.
+    Bu fonksiyon KULLANICI API HAKKI TÜKETİR.
+    """
+    # KULLANICI API HAKKI KONTROLÜ - ÜST SEVİYEDE
+    can_request, error_msg = api_utils.check_api_limit()
+    if not can_request:
+        st.error(f"API Limit Hatası: {error_msg}")
+        return
+    # Kullanıcı hakkını tüket (her analiz için 1 kredi)
+    api_utils.increment_api_usage()
+    
     id_a, name_a, id_b, name_b = team_a_data['id'], team_a_data['name'], team_b_data['id'], team_b_data['name']
     logo_a = team_a_data.get('logo', '')
     logo_b = team_b_data.get('logo', '')
@@ -1159,7 +1185,8 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     </div>
     """, unsafe_allow_html=True)
     
-    league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a)
+    # Artık HER ZAMAN skip_limit=True - API hakkı üst seviyede yönetiliyor
+    league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=True)
     
     # Eğer takımdan lig bilgisi alınamazsa, manuel olarak verilen lig bilgisini kullan
     if not league_info and league_id:
@@ -1171,7 +1198,8 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
         st.error("Lig bilgisi alınamadı."); 
         return
     
-    analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, LIG_ORTALAMA_GOL)
+    # Artık HER ZAMAN skip_api_limit=True - API hakkı üst seviyede yönetiliyor
+    analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=True)
     if not analysis: st.error("Analiz verisi oluşturulamadı."); return
 
     with st.spinner("Ek veriler çekiliyor..."):
