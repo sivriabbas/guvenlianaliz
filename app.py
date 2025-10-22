@@ -278,6 +278,41 @@ def get_default_favorite_leagues() -> List[str]:
         favorites = list(INTERESTING_LEAGUES.values())[:3]
     return favorites
 
+def save_user_favorite_leagues(username: str, leagues: List[str]):
+    """Kullanıcının favori liglerini config.yaml'e kaydeder"""
+    try:
+        with open('config.yaml', 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if 'credentials' not in config:
+            config['credentials'] = {}
+        if 'usernames' not in config['credentials']:
+            config['credentials']['usernames'] = {}
+        
+        if username in config['credentials']['usernames']:
+            config['credentials']['usernames'][username]['favorite_leagues'] = leagues
+            
+            with open('config.yaml', 'w', encoding='utf-8') as f:
+                yaml.dump(config, f, allow_unicode=True, default_flow_style=False)
+            return True
+        return False
+    except Exception as e:
+        print(f"Favori ligler kaydedilemedi: {e}")
+        return False
+
+def load_user_favorite_leagues(username: str) -> Optional[List[str]]:
+    """Kullanıcının favori liglerini config.yaml'den yükler"""
+    try:
+        with open('config.yaml', 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if 'credentials' in config and 'usernames' in config['credentials']:
+            if username in config['credentials']['usernames']:
+                return config['credentials']['usernames'][username].get('favorite_leagues')
+        return None
+    except Exception:
+        return None
+
 def normalize_league_labels(labels: Optional[List[str]]) -> List[str]:
     if not labels:
         return []
@@ -1291,7 +1326,18 @@ def build_home_view(model_params):
     st.markdown("---")
     
     st.subheader("⭐ Favori Liglerinizdeki Yaklaşan Maçlar")
+    
+    # Kullanıcının kaydedilmiş favori liglerini yükle
+    username = st.session_state.get('username')
     favorite_leagues = st.session_state.get('favorite_leagues')
+    
+    # Session'da yoksa config'den yükle
+    if favorite_leagues is None and username:
+        favorite_leagues = load_user_favorite_leagues(username)
+        if favorite_leagues:
+            st.session_state.favorite_leagues = favorite_leagues
+    
+    # Hala yoksa varsayılan ligleri kullan
     if favorite_leagues is None:
         favorite_leagues = get_default_favorite_leagues()
         st.session_state.favorite_leagues = favorite_leagues
@@ -1884,7 +1930,18 @@ def main():
                 print(f"IP kontrol hatası: {e}")
 
         if 'view' not in st.session_state: st.session_state.view = 'home'
-        if 'favorite_leagues' not in st.session_state: st.session_state.favorite_leagues = None
+        
+        # Favori ligleri config'den yükle (ilk giriş)
+        if 'favorite_leagues' not in st.session_state or st.session_state.favorite_leagues is None:
+            username = st.session_state.get('username')
+            if username:
+                loaded_favorites = load_user_favorite_leagues(username)
+                if loaded_favorites:
+                    st.session_state.favorite_leagues = loaded_favorites
+                else:
+                    st.session_state.favorite_leagues = None
+            else:
+                st.session_state.favorite_leagues = None
 
         st.sidebar.title(f"Hoş Geldin, *{st.session_state['name']}*")
         
@@ -1974,14 +2031,31 @@ def main():
         with st.sidebar.expander("⭐ Favori Ligleri Yönet"):
             all_leagues = list(INTERESTING_LEAGUES.values())
             stored_favorites = st.session_state.get('favorite_leagues')
+            
+            # Config'den yükle
+            username = st.session_state.get('username')
+            if stored_favorites is None and username:
+                stored_favorites = load_user_favorite_leagues(username)
+                if stored_favorites:
+                    st.session_state.favorite_leagues = stored_favorites
+            
+            # Hala yoksa varsayılanları kullan
             if stored_favorites is None:
                 stored_favorites = get_default_favorite_leagues()
                 st.session_state.favorite_leagues = stored_favorites
+            
             current_favorites = normalize_league_labels(stored_favorites)
             new_favorites = st.multiselect("Favori liglerinizi seçin:", options=all_leagues, default=current_favorites)
             if st.button("Favorileri Kaydet", key="save_fav"):
                 st.session_state.favorite_leagues = new_favorites
-                st.success("Favoriler kaydedildi!")
+                # Config.yaml'e kaydet
+                if username:
+                    if save_user_favorite_leagues(username, new_favorites):
+                        st.success("✅ Favoriler kalıcı olarak kaydedildi!")
+                    else:
+                        st.warning("⚠️ Favoriler oturum için kaydedildi (kalıcı kayıt başarısız).")
+                else:
+                    st.warning("⚠️ Favoriler sadece bu oturum için kaydedildi.")
                 safe_rerun()
 
         st.sidebar.markdown("---")
