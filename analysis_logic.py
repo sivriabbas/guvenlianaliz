@@ -1432,9 +1432,12 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     away_corners_against = weighted_stats_b.get('away', {}).get('w_avg_corners_against', 0)
     
     # DEBUG: Veri kontrolü
-    print(f"🔍 DEBUG KORNER VERİSİ:")
-    print(f"  Ev Sahibi Korner (for/against): {home_corners_for:.2f} / {home_corners_against:.2f}")
-    print(f"  Deplasman Korner (for/against): {away_corners_for:.2f} / {away_corners_against:.2f}")
+    debug_msg = f"\n🔍 DEBUG KORNER VERİSİ:\n"
+    debug_msg += f"  Ev Sahibi Korner (for/against): {home_corners_for:.2f} / {home_corners_against:.2f}\n"
+    debug_msg += f"  Deplasman Korner (for/against): {away_corners_for:.2f} / {away_corners_against:.2f}\n"
+    print(debug_msg)
+    with open("debug_log.txt", "a", encoding="utf-8") as f:
+        f.write(debug_msg)
     
     # 2. Eğer gerçek veri varsa kullan - SADECE KAZANILAN KORNERLER
     # NOT: calculate_corner_probabilities fonksiyonu zaten toplamı hesaplıyor
@@ -1450,7 +1453,10 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
         # Gerçek veri yoksa tahmini hesaplama
         away_corners_avg = 2.0 + (away_attack_idx * 0.8) + (home_def_idx * 0.5)
     
-    print(f"  Hesaplanan Korner (ev/dep): {home_corners_avg:.2f} / {away_corners_avg:.2f} → Toplam: {home_corners_avg + away_corners_avg:.2f}")
+    debug_msg2 = f"  Hesaplanan Korner (ev/dep): {home_corners_avg:.2f} / {away_corners_avg:.2f} → Toplam: {home_corners_avg + away_corners_avg:.2f}\n"
+    print(debug_msg2)
+    with open("debug_log.txt", "a", encoding="utf-8") as f:
+        f.write(debug_msg2)
     
     # 3. Lig ortalamasına göre normalize et (10-11 korner normal)
     league_avg_corners = 10.5
@@ -1464,19 +1470,25 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     away_red_avg = weighted_stats_b.get('away', {}).get('w_avg_red_cards', 0)
     
     # DEBUG: Kart verileri
-    print(f"🔍 DEBUG KART VERİSİ:")
-    print(f"  Ev Sahibi Kartlar (sarı/kırmızı): {home_yellow_avg:.2f} / {home_red_avg:.3f}")
-    print(f"  Deplasman Kartlar (sarı/kırmızı): {away_yellow_avg:.2f} / {away_red_avg:.3f}")
+    debug_msg3 = f"\n🔍 DEBUG KART VERİSİ:\n"
+    debug_msg3 += f"  Ev Sahibi Kartlar (sarı/kırmızı): {home_yellow_avg:.2f} / {home_red_avg:.3f}\n"
+    debug_msg3 += f"  Deplasman Kartlar (sarı/kırmızı): {away_yellow_avg:.2f} / {away_red_avg:.3f}\n"
+    print(debug_msg3)
+    with open("debug_log.txt", "a", encoding="utf-8") as f:
+        f.write(debug_msg3)
     
     # 2. Hakem verisi varsa %70 hakem, %30 takım ağırlığı
     if referee_stats_processed:
         referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0)
         referee_red_avg = referee_stats_processed.get('red_per_game', 0.15)
-        print(f"  Hakem Kartlar (sarı/kırmızı): {referee_yellow_avg:.2f} / {referee_red_avg:.3f}")
+        msg = f"  Hakem Kartlar (sarı/kırmızı): {referee_yellow_avg:.2f} / {referee_red_avg:.3f}\n"
     else:
         referee_yellow_avg = 4.0
         referee_red_avg = 0.15
-        print(f"  Hakem verisi yok, varsayılan kullanılıyor")
+        msg = f"  Hakem verisi yok, varsayılan kullanılıyor\n"
+    print(msg)
+    with open("debug_log.txt", "a", encoding="utf-8") as f:
+        f.write(msg)
     
     # 3. Eğer takım verileri varsa, hakem + takım ortalamasını al
     if home_yellow_avg > 0 and away_yellow_avg > 0:
@@ -1486,12 +1498,15 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
         
         team_red_avg = (home_red_avg + away_red_avg) / 2
         final_red_avg = (referee_red_avg * 0.7) + (team_red_avg * 0.3)
-        print(f"  Final Kartlar (70% hakem + 30% takım): {final_yellow_avg:.2f} / {final_red_avg:.3f}")
+        msg2 = f"  Final Kartlar (70% hakem + 30% takım): {final_yellow_avg:.2f} / {final_red_avg:.3f}\n"
     else:
         # Sadece hakem verisi
         final_yellow_avg = referee_yellow_avg
         final_red_avg = referee_red_avg
-        print(f"  Final Kartlar (sadece hakem): {final_yellow_avg:.2f} / {final_red_avg:.3f}")
+        msg2 = f"  Final Kartlar (sadece hakem): {final_yellow_avg:.2f} / {final_red_avg:.3f}\n"
+    print(msg2)
+    with open("debug_log.txt", "a", encoding="utf-8") as f:
+        f.write(msg2)
     
     card_probs = calculate_card_probabilities(final_yellow_avg, final_red_avg)
     

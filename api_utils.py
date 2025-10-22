@@ -579,11 +579,19 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
     
     # DEBUG: API'den gelen veriyi kontrol et
     if stats_list:
-        print(f"\n🔍 API'DEN GELEN VERİ (Team {team_id}):")
+        debug_msg = f"\n🔍 API'DEN GELEN VERİ (Team {team_id}):\n"
         for i, stat in enumerate(stats_list[:3]):  # İlk 3 maçı göster
-            print(f"  Maç {i+1}: Korner={stat['corners_for']}/{stat['corners_against']}, Kartlar={stat['yellow_cards']}/{stat['red_cards']}")
+            debug_msg += f"  Maç {i+1}: Korner={stat['corners_for']}/{stat['corners_against']}, Kartlar={stat['yellow_cards']}/{stat['red_cards']}\n"
+        print(debug_msg)
+        
+        # LOG dosyasına da yaz
+        with open("debug_log.txt", "a", encoding="utf-8") as f:
+            f.write(debug_msg)
     else:
-        print(f"\n⚠️ API'DEN VERİ GELMEDİ (Team {team_id})")
+        msg = f"\n⚠️ API'DEN VERİ GELMEDİ (Team {team_id})\n"
+        print(msg)
+        with open("debug_log.txt", "a", encoding="utf-8") as f:
+            f.write(msg)
     
     return stats_list
 
