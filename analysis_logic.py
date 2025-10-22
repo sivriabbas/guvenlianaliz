@@ -1424,89 +1424,54 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
 
     pace_index = (home_att + away_att) / max(0.2, avg_home_goals + avg_away_goals)
     
-    # 🆕 KORNER TAHMİNLERİ - GERÇEK VERİLERLE
-    # 1. Önce gerçek korner verilerini al (son maçlardan)
-    home_corners_for = weighted_stats_a.get('home', {}).get('w_avg_corners_for', 0)
-    home_corners_against = weighted_stats_a.get('home', {}).get('w_avg_corners_against', 0)
-    away_corners_for = weighted_stats_b.get('away', {}).get('w_avg_corners_for', 0)
-    away_corners_against = weighted_stats_b.get('away', {}).get('w_avg_corners_against', 0)
+    # 🆕 KORNER TAHMİNLERİ - GELİŞTİRİLMİŞ FORMÜL (Gol verilerine dayalı)
+    # API'den korner verisi gelmiyor, bu yüzden akıllı formül kullanıyoruz
     
-    # DEBUG: Veri kontrolü
-    debug_msg = f"\n🔍 DEBUG KORNER VERİSİ:\n"
-    debug_msg += f"  Ev Sahibi Korner (for/against): {home_corners_for:.2f} / {home_corners_against:.2f}\n"
-    debug_msg += f"  Deplasman Korner (for/against): {away_corners_for:.2f} / {away_corners_against:.2f}\n"
-    print(debug_msg)
-    with open("debug_log.txt", "a", encoding="utf-8") as f:
-        f.write(debug_msg)
+    # Korner sayısı gol sayısıyla yüksek korelasyon gösterir
+    # Hücum gücü yüksek takım → Daha fazla korner
+    # Savunma zayıf takım → Rakibe daha fazla korner
     
-    # 2. Eğer gerçek veri varsa kullan - SADECE KAZANILAN KORNERLER
-    # NOT: calculate_corner_probabilities fonksiyonu zaten toplamı hesaplıyor
-    if home_corners_for > 0:
-        home_corners_avg = home_corners_for  # Ev sahibinin KAZANDIĞI kornerler
-    else:
-        # Gerçek veri yoksa tahmini hesaplama
-        home_corners_avg = 2.5 + (home_attack_idx * 0.8) + (away_def_idx * 0.5)
+    # Ev sahibi korner tahmini (maç başına)
+    # Temel: 2-7 korner arası, sıralama ve gol bazlı
+    home_base_corners = 3.0  # Ortalama ev sahibi baz
+    home_attack_bonus = (home_attack_idx - 1.0) * 2.5  # Güçlü hücum = +korner
+    home_press_bonus = (2.0 - away_def_idx) * 1.5  # Zayıf rakip savunma = +korner
+    home_corners_avg = max(2.0, min(7.0, home_base_corners + home_attack_bonus + home_press_bonus))
     
-    if away_corners_for > 0:
-        away_corners_avg = away_corners_for  # Deplasmanın KAZANDIĞI kornerler
-    else:
-        # Gerçek veri yoksa tahmini hesaplama
-        away_corners_avg = 2.0 + (away_attack_idx * 0.8) + (home_def_idx * 0.5)
-    
-    debug_msg2 = f"  Hesaplanan Korner (ev/dep): {home_corners_avg:.2f} / {away_corners_avg:.2f} → Toplam: {home_corners_avg + away_corners_avg:.2f}\n"
-    print(debug_msg2)
-    with open("debug_log.txt", "a", encoding="utf-8") as f:
-        f.write(debug_msg2)
+    # Deplasman korner tahmini
+    away_base_corners = 2.5  # Ortalama deplasman baz (ev sahibinden az)
+    away_attack_bonus = (away_attack_idx - 1.0) * 2.5
+    away_press_bonus = (2.0 - home_def_idx) * 1.5
+    away_corners_avg = max(1.5, min(6.0, away_base_corners + away_attack_bonus + away_press_bonus))
     
     # 3. Lig ortalamasına göre normalize et (10-11 korner normal)
     league_avg_corners = 10.5
     corner_probs = calculate_corner_probabilities(home_corners_avg, away_corners_avg, league_avg_corners)
     
-    # 🆕 KART TAHMİNLERİ - GERÇEK VERİLERLE
-    # 1. Takımların gerçek kart ortalamalarını al
-    home_yellow_avg = weighted_stats_a.get('home', {}).get('w_avg_yellow_cards', 0)
-    home_red_avg = weighted_stats_a.get('home', {}).get('w_avg_red_cards', 0)
-    away_yellow_avg = weighted_stats_b.get('away', {}).get('w_avg_yellow_cards', 0)
-    away_red_avg = weighted_stats_b.get('away', {}).get('w_avg_red_cards', 0)
-    
-    # DEBUG: Kart verileri
-    debug_msg3 = f"\n🔍 DEBUG KART VERİSİ:\n"
-    debug_msg3 += f"  Ev Sahibi Kartlar (sarı/kırmızı): {home_yellow_avg:.2f} / {home_red_avg:.3f}\n"
-    debug_msg3 += f"  Deplasman Kartlar (sarı/kırmızı): {away_yellow_avg:.2f} / {away_red_avg:.3f}\n"
-    print(debug_msg3)
-    with open("debug_log.txt", "a", encoding="utf-8") as f:
-        f.write(debug_msg3)
-    
-    # 2. Hakem verisi varsa %70 hakem, %30 takım ağırlığı
+    # 🆕 KART TAHMİNLERİ - GELİŞTİRİLMİŞ FORMÜL
+    # Hakem bazlı tahmin (hakem sertliği en önemli faktör)
     if referee_stats_processed:
         referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0)
         referee_red_avg = referee_stats_processed.get('red_per_game', 0.15)
-        msg = f"  Hakem Kartlar (sarı/kırmızı): {referee_yellow_avg:.2f} / {referee_red_avg:.3f}\n"
     else:
-        referee_yellow_avg = 4.0
-        referee_red_avg = 0.15
-        msg = f"  Hakem verisi yok, varsayılan kullanılıyor\n"
-    print(msg)
-    with open("debug_log.txt", "a", encoding="utf-8") as f:
-        f.write(msg)
+        # Hakem verisi yoksa lig ortalaması
+        referee_yellow_avg = 3.8  # Gerçekçi ortalama
+        referee_red_avg = 0.12   # ~8 maçta 1 kırmızı
     
-    # 3. Eğer takım verileri varsa, hakem + takım ortalamasını al
-    if home_yellow_avg > 0 and away_yellow_avg > 0:
-        # Hakem %70, takımlar %30
-        team_yellow_avg = (home_yellow_avg + away_yellow_avg) / 2
-        final_yellow_avg = (referee_yellow_avg * 0.7) + (team_yellow_avg * 0.3)
-        
-        team_red_avg = (home_red_avg + away_red_avg) / 2
-        final_red_avg = (referee_red_avg * 0.7) + (team_red_avg * 0.3)
-        msg2 = f"  Final Kartlar (70% hakem + 30% takım): {final_yellow_avg:.2f} / {final_red_avg:.3f}\n"
-    else:
-        # Sadece hakem verisi
-        final_yellow_avg = referee_yellow_avg
-        final_red_avg = referee_red_avg
-        msg2 = f"  Final Kartlar (sadece hakem): {final_yellow_avg:.2f} / {final_red_avg:.3f}\n"
-    print(msg2)
-    with open("debug_log.txt", "a", encoding="utf-8") as f:
-        f.write(msg2)
+    # Maç önem derecesi kartları etkiler (sıralamaya göre)
+    # Yakın sıralama = daha sert maç = daha fazla kart
+    ranking_intensity = 1.0
+    if abs(elo_diff) < 50:  # Çok yakın güç
+        ranking_intensity = 1.15  # %15 daha fazla kart
+    elif abs(elo_diff) < 100:
+        ranking_intensity = 1.08  # %8 daha fazla kart
+    
+    final_yellow_avg = referee_yellow_avg * ranking_intensity
+    final_red_avg = referee_red_avg * ranking_intensity
+    
+    # Gerçekçi sınırlar
+    final_yellow_avg = max(2.5, min(6.0, final_yellow_avg))  # 2.5-6.0 arası
+    final_red_avg = max(0.05, min(0.30, final_red_avg))      # %5-30 arası
     
     card_probs = calculate_card_probabilities(final_yellow_avg, final_red_avg)
     

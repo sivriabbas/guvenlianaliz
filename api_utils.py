@@ -521,12 +521,12 @@ def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: in
     params = {'team': team_id, 'league': league_id, 'season': season}
     return make_api_request(api_key, base_url, "teams/statistics", params, skip_limit=skip_limit)
 
-# GEÇICI: Cache kapatıldı - test için
-# @st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600)
 def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit: int = 10, skip_limit: bool = False) -> Optional[List[Dict]]:
     """
-    Takımın son maçlarını çeker (gol, korner, kart verileri dahil).
-    Korner ve kart verileri varsa ekler, yoksa None bırakır.
+    Takımın son maçlarını çeker (sadece gol verileri).
+    NOT: API-Football /fixtures endpoint'i statistics döndürmüyor,
+    bu yüzden korner/kart verileri None kalır ve formül kullanılır.
     """
     params = {'team': team_id, 'last': limit, 'status': 'FT'}
     matches, error = make_api_request(api_key, base_url, "fixtures", params, skip_limit=skip_limit)
@@ -542,64 +542,19 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
             if score_for is None or score_against is None: 
                 continue
             
-            # Korner ve kart verileri (varsa)
-            corners_for = None
-            corners_against = None
-            yellow_cards = None
-            red_cards = None
-            
-            if 'statistics' in match and match['statistics']:
-                # DEBUG: Statistics yapısını kontrol et
-                print(f"\n📋 Statistics bulundu, {len(match['statistics'])} takım var")
-                
-                for stat in match['statistics']:
-                    if stat['team']['id'] == team_id:
-                        # Takımın istatistikleri
-                        print(f"  Takım {team_id} istatistikleri:")
-                        for item in stat.get('statistics', []):
-                            print(f"    - {item.get('type')}: {item.get('value')}")
-                            
-                            if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
-                                corners_for = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
-                            elif item.get('type') == 'Yellow Cards' and item.get('value') is not None:
-                                yellow_cards = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else 0
-                            elif item.get('type') == 'Red Cards' and item.get('value') is not None:
-                                red_cards = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else 0
-                    else:
-                        # Rakip takımın kornerleri
-                        for item in stat.get('statistics', []):
-                            if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
-                                corners_against = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
-            else:
-                print(f"\n⚠️ Statistics bulunamadı bu maç için!")
-            
+            # Korner ve kart verileri - API'den gelmiyor, None bırak
+            # Formül kullanarak hesaplanacak
             stats_list.append({
                 'location': 'home' if is_home else 'away',
                 'goals_for': score_for,
                 'goals_against': score_against,
-                'corners_for': corners_for,
-                'corners_against': corners_against,
-                'yellow_cards': yellow_cards,
-                'red_cards': red_cards
+                'corners_for': None,
+                'corners_against': None,
+                'yellow_cards': None,
+                'red_cards': None
             })
         except (KeyError, TypeError):
             continue
-    
-    # DEBUG: API'den gelen veriyi kontrol et
-    if stats_list:
-        debug_msg = f"\n🔍 API'DEN GELEN VERİ (Team {team_id}):\n"
-        for i, stat in enumerate(stats_list[:3]):  # İlk 3 maçı göster
-            debug_msg += f"  Maç {i+1}: Korner={stat['corners_for']}/{stat['corners_against']}, Kartlar={stat['yellow_cards']}/{stat['red_cards']}\n"
-        print(debug_msg)
-        
-        # LOG dosyasına da yaz
-        with open("debug_log.txt", "a", encoding="utf-8") as f:
-            f.write(debug_msg)
-    else:
-        msg = f"\n⚠️ API'DEN VERİ GELMEDİ (Team {team_id})\n"
-        print(msg)
-        with open("debug_log.txt", "a", encoding="utf-8") as f:
-            f.write(msg)
     
     return stats_list
 
