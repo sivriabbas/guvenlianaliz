@@ -1424,31 +1424,76 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
 
     pace_index = (home_att + away_att) / max(0.2, avg_home_goals + avg_away_goals)
     
-    # 🆕 KORNER TAHMİNLERİ - GELİŞTİRİLMİŞ FORMÜL (Gol verilerine dayalı)
-    # API'den korner verisi gelmiyor, bu yüzden akıllı formül kullanıyoruz
+    # 📊 ELO BAZLI DENGELİ SİSTEM
+    # ELO farkına göre maç karakteristiği belirleme
+    elo_dominance = 1.0  # Varsayılan dengeli maç
     
-    # Korner sayısı gol sayısıyla yüksek korelasyon gösterir
-    # Hücum gücü yüksek takım → Daha fazla korner
-    # Savunma zayıf takım → Rakibe daha fazla korner
+    if abs(elo_diff) < 30:
+        # Çok dengeli maç (ELO farkı <30)
+        match_type = "Çok Dengeli"
+        elo_dominance = 1.00
+        corner_intensity = 0.95  # Az daha az korner (defensif)
+        card_intensity = 1.20    # %20 daha fazla kart (kavgalı)
+    elif abs(elo_diff) < 80:
+        # Dengeli maç (ELO farkı 30-80)
+        match_type = "Dengeli"
+        elo_dominance = 1.05
+        corner_intensity = 1.00  # Normal korner
+        card_intensity = 1.10    # %10 daha fazla kart
+    elif abs(elo_diff) < 150:
+        # Orta seviye fark (ELO farkı 80-150)
+        match_type = "Hafif Fark"
+        elo_dominance = 1.12
+        corner_intensity = 1.08  # %8 daha fazla korner (tek taraflı baskı)
+        card_intensity = 1.00    # Normal kart
+    elif abs(elo_diff) < 250:
+        # Büyük fark (ELO farkı 150-250)
+        match_type = "Büyük Fark"
+        elo_dominance = 1.20
+        corner_intensity = 1.15  # %15 daha fazla korner (tam baskı)
+        card_intensity = 0.90    # %10 daha az kart (tek taraflı)
+    else:
+        # Çok büyük fark (ELO farkı >250)
+        match_type = "Çok Büyük Fark"
+        elo_dominance = 1.30
+        corner_intensity = 1.25  # %25 daha fazla korner (total baskı)
+        card_intensity = 0.80    # %20 daha az kart (kolay maç)
     
+    # 🆕 KORNER TAHMİNLERİ - GELİŞTİRİLMİŞ FORMÜL (ELO + Gol bazlı)
     # Ev sahibi korner tahmini (maç başına)
-    # Temel: 2-7 korner arası, sıralama ve gol bazlı
     home_base_corners = 3.0  # Ortalama ev sahibi baz
     home_attack_bonus = (home_attack_idx - 1.0) * 2.5  # Güçlü hücum = +korner
     home_press_bonus = (2.0 - away_def_idx) * 1.5  # Zayıf rakip savunma = +korner
-    home_corners_avg = max(2.0, min(7.0, home_base_corners + home_attack_bonus + home_press_bonus))
+    
+    # ELO etkisi: Güçlü takım daha fazla korner kazanır
+    if elo_diff > 0:  # Ev sahibi güçlü
+        home_elo_bonus = min(2.0, elo_diff / 100)  # Maksimum +2 korner
+        away_elo_penalty = -min(1.0, elo_diff / 150)  # Maksimum -1 korner
+    else:  # Deplasman güçlü
+        home_elo_bonus = max(-1.0, elo_diff / 150)  # Maksimum -1 korner
+        away_elo_bonus = min(2.0, abs(elo_diff) / 100)  # Maksimum +2 korner
+        away_elo_penalty = 0
+    
+    home_corners_raw = home_base_corners + home_attack_bonus + home_press_bonus + home_elo_bonus
+    home_corners_avg = max(2.0, min(7.5, home_corners_raw * corner_intensity))
     
     # Deplasman korner tahmini
-    away_base_corners = 2.5  # Ortalama deplasman baz (ev sahibinden az)
+    away_base_corners = 2.5  # Ortalama deplasman baz
     away_attack_bonus = (away_attack_idx - 1.0) * 2.5
     away_press_bonus = (2.0 - home_def_idx) * 1.5
-    away_corners_avg = max(1.5, min(6.0, away_base_corners + away_attack_bonus + away_press_bonus))
     
-    # 3. Lig ortalamasına göre normalize et (10-11 korner normal)
+    if elo_diff <= 0:  # Deplasman güçlü
+        away_corners_raw = away_base_corners + away_attack_bonus + away_press_bonus + away_elo_bonus
+    else:  # Ev sahibi güçlü
+        away_corners_raw = away_base_corners + away_attack_bonus + away_press_bonus + away_elo_penalty
+    
+    away_corners_avg = max(1.5, min(6.5, away_corners_raw * corner_intensity))
+    
+    # Lig ortalamasına göre normalize et
     league_avg_corners = 10.5
     corner_probs = calculate_corner_probabilities(home_corners_avg, away_corners_avg, league_avg_corners)
     
-    # 🆕 KART TAHMİNLERİ - GELİŞTİRİLMİŞ FORMÜL
+    # 🆕 KART TAHMİNLERİ - ELO BAZLI DENGELI FORMÜL
     # Hakem bazlı tahmin (hakem sertliği en önemli faktör)
     if referee_stats_processed:
         referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0)
@@ -1458,16 +1503,10 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
         referee_yellow_avg = 3.8  # Gerçekçi ortalama
         referee_red_avg = 0.12   # ~8 maçta 1 kırmızı
     
-    # Maç önem derecesi kartları etkiler (sıralamaya göre)
-    # Yakın sıralama = daha sert maç = daha fazla kart
-    ranking_intensity = 1.0
-    if abs(elo_diff) < 50:  # Çok yakın güç
-        ranking_intensity = 1.15  # %15 daha fazla kart
-    elif abs(elo_diff) < 100:
-        ranking_intensity = 1.08  # %8 daha fazla kart
-    
-    final_yellow_avg = referee_yellow_avg * ranking_intensity
-    final_red_avg = referee_red_avg * ranking_intensity
+    # ELO bazlı kart yoğunluğu (yukarıda hesaplandı: card_intensity)
+    # Dengeli maç = daha fazla kart, tek taraflı maç = daha az kart
+    final_yellow_avg = referee_yellow_avg * card_intensity
+    final_red_avg = referee_red_avg * card_intensity
     
     # Gerçekçi sınırlar
     final_yellow_avg = max(2.5, min(6.0, final_yellow_avg))  # 2.5-6.0 arası
