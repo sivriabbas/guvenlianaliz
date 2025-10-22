@@ -1340,6 +1340,9 @@ def build_home_view(model_params):
     if LEAGUE_LOAD_ERROR:
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
     
+    # Ana sayfa bilgilendirme
+    st.success("✨ Günün tahminleri sistem API'si ile ücretsiz olarak sunulmaktadır. Detaylı analiz yapmak için kullanıcı API hakkınız kullanılacaktır.")
+    
     st.markdown("---")
     st.subheader("🔍 Hızlı Takım Araması")
     team_query = st.text_input("Bir sonraki maçını bulmak için takım adı girin:", placeholder="Örn: Galatasaray")
@@ -1414,6 +1417,10 @@ def build_dashboard_view(model_params: Dict):
         # Seçimi session state'e kaydet
         st.session_state.dashboard_selected_leagues = selected_names
     st.markdown(f"### {selected_date.strftime('%d %B %Y')} Maçları")
+    
+    # Bilgilendirme mesajı
+    st.info("ℹ️ Maç listesi ve özet tahminler sistem API'si kullanılarak sağlanır. Detaylı maç analizi yapmak için kullanıcı API hakkınız kullanılacaktır.")
+    
     st.markdown("---")
     if not selected_names: 
         st.warning("Lütfen analiz için yukarıdan en az bir lig seçin."); return
@@ -1425,8 +1432,11 @@ def build_dashboard_view(model_params: Dict):
     if not selected_ids:
         st.warning("Seçili ligler bulunamadı. Lütfen seçimlerinizi kontrol edin.")
         return
+    
+    # MAÇ PANOSUNDA ARAMA - SİSTEM API HAKKI KULLAN (bypass_limit_check=True)
     with st.spinner(f"Maçlar getiriliyor..."):
-        fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, selected_date)
+        fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, selected_date, bypass_limit_check=True)
+    
     if error: st.error(f"Maçlar çekilirken bir hata oluştu:\n\n{error}"); return
     if not fixtures: st.info(f"Seçtiğiniz tarih ve liglerde maç bulunamadı."); return
     progress_bar = st.progress(0, text="Maçlar analiz ediliyor...")
@@ -1499,6 +1509,9 @@ def build_manual_view(model_params: Dict):
         🔩 Manuel Takım Analizi
     </h1>
     """, unsafe_allow_html=True)
+    
+    # API Kullanımı Bilgilendirmesi
+    st.info("ℹ️ Bu sayfadaki tüm detaylı analizler kullanıcı API hakkınızı kullanacaktır. Maç listesi için sistem API'si kullanılır.")
     
     if LEAGUE_LOAD_ERROR:
         st.warning(f"Lig listesi yüklenirken uyarı: {LEAGUE_LOAD_ERROR}")

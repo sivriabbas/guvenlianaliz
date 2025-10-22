@@ -1,6 +1,5 @@
 admin_users:
 - sivrii1940
-- admin
 cookie:
   expiry_days: 365
   key: random_signature_key_burayi_degistir
