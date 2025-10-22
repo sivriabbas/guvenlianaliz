@@ -1389,6 +1389,20 @@ def build_codes_view():
     render_code_finder(embed=False, key_prefix="standalone")
 
 def main():
+    # KALICI OTURUM - LocalStorage ile yönetim
+    # JavaScript ile localStorage'dan kullanıcı bilgisini oku
+    auth_script = """
+    <script>
+        window.addEventListener('load', function() {
+            const savedAuth = localStorage.getItem('futbol_auth');
+            if (savedAuth) {
+                const authData = JSON.parse(savedAuth);
+                window.parent.postMessage({type: 'streamlit:setComponentValue', value: authData}, '*');
+            }
+        });
+    </script>
+    """
+    
     with open('config.yaml', encoding='utf-8') as file:
         config = yaml.load(file, Loader=SafeLoader)
 
@@ -1416,22 +1430,38 @@ def main():
     # Admin listesini session_state'e kaydet (API kontrolü için gerekli)
     st.session_state['admin_users'] = admin_users
     
-    # KALICI OTURUM YÖNETİMİ - Session state kontrolü
-    # Eğer daha önce giriş yapılmışsa ve authentication_status True ise, tekrar login gösterme
-    if 'authentication_status' in st.session_state and st.session_state.get('authentication_status') is True:
-        # Zaten giriş yapılmış, login formunu gösterme
+    # KALICI OTURUM YÖNETİMİ - Query params ile kontrol
+    # URL query params'dan gelen auth bilgisini kontrol et
+    query_params = st.query_params
+    
+    # İlk kontrol: Session state'de authentication var mı?
+    if 'authentication_status' not in st.session_state:
+        # Query params'dan oku
+        if 'auth_user' in query_params:
+            saved_username = query_params.get('auth_user', '')
+            if saved_username and saved_username in config['credentials']['usernames']:
+                st.session_state['authentication_status'] = True
+                st.session_state['username'] = saved_username
+                st.session_state['name'] = config['credentials']['usernames'][saved_username].get('name', saved_username)
+    
+    # Giriş yapılmışsa login formu gösterme
+    if st.session_state.get('authentication_status') is True:
+        # Zaten giriş yapılmış, direkt ana sayfaya git
         pass
     else:
         # Giriş yapılmamış, login formunu göster
         try:
             name, authentication_status, username = authenticator.login(location='main', fields={'Form name': 'Giriş Yap'})
             
-            # Başarılı giriş sonrası session state'e kaydet
+            # Başarılı giriş sonrası session state'e kaydet ve URL'e ekle
             if authentication_status:
                 st.session_state['authentication_status'] = True
                 st.session_state['username'] = username
                 st.session_state['name'] = name
-                st.rerun()  # Sayfayı yenile
+                
+                # Query params'a ekle (kalıcı oturum için)
+                st.query_params['auth_user'] = username
+                st.rerun()
             elif authentication_status is False:
                 st.session_state['authentication_status'] = False
             elif authentication_status is None:
@@ -1665,9 +1695,16 @@ def main():
             st.sidebar.info(f"Hesap Türü: **{user_tier.capitalize()}**")
             st.sidebar.metric(label="Kalan Günlük API Hakkı", value=f"{remaining_requests} / {user_limit}")
 
-        # Çıkış butonu - logout sonrası login ekranına dön
+        # Çıkış butonu - logout sonrası query params'ı temizle
         if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True, key='logout_button_custom'):
             authenticator.logout()
+            st.session_state['authentication_status'] = False
+            st.session_state['username'] = None
+            st.session_state['name'] = None
+            # Query params'dan auth_user'ı sil
+            if 'auth_user' in st.query_params:
+                del st.query_params['auth_user']
+            st.rerun()
             # Session state temizle
             for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
                 if key in st.session_state:
