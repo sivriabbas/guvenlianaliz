@@ -81,6 +81,26 @@ except (FileNotFoundError, KeyError):
     st.stop()
 BASE_URL = "https://v3.football.api-sports.io"
 
+# Oturum kalıcılığı ve F5/geri tuşunda çıkış olmaması için session/cookie ayarları
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
+if 'username' not in st.session_state:
+    st.session_state['username'] = None
+if 'auth_time' not in st.session_state:
+    st.session_state['auth_time'] = datetime.now()
+
+def set_authenticated(username):
+    st.session_state['authenticated'] = True
+    st.session_state['username'] = username
+    st.session_state['auth_time'] = datetime.now()
+
+def is_authenticated():
+    # 5 gün boyunca oturum açık kalsın (cookie expiry_days zaten 90)
+    if st.session_state.get('authenticated', False):
+        if (datetime.now() - st.session_state.get('auth_time', datetime.now())).days < 5:
+            return True
+    return False
+
 INTERESTING_LEAGUES = {
     # Popüler Avrupa 1. Ligleri
     39: "🇬🇧 Premier League", 140: "🇪🇸 La Liga", 135: "🇮🇹 Serie A", 
@@ -817,16 +837,39 @@ def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
 def analyze_fixture_by_id(fixture_id: int, home_id: int, away_id: int, model_params: Dict):
     """Fixture ID ile detaylı analiz yapar"""
     try:
-        # Fixture detaylarını al
         fixture_details, error = api_utils.get_fixture_details(API_KEY, BASE_URL, fixture_id)
         if error or not fixture_details:
             st.error("Maç detayları alınamadı.")
             return
-        
         home_team = fixture_details['teams']['home']
         away_team = fixture_details['teams']['away']
-        
-        # Detaylı analizi göster
+        # Görsel olarak modern ve hizalı analiz kartı
+        st.markdown("""
+        <div style='background:#181c20;padding:32px 24px 24px 24px;border-radius:18px;box-shadow:0 2px 12px #0002;'>
+            <div style='display:flex;align-items:center;justify-content:space-between;'>
+                <div style='display:flex;align-items:center;'>
+                    <img src='{}' width='48' style='margin-right:12px;border-radius:50%;border:2px solid #fff;'>
+                    <span style='font-size:1.5em;font-weight:700;color:#fff;'>{}</span>
+                </div>
+                <span style='font-size:1.2em;color:#bbb;font-weight:500;'>vs</span>
+                <div style='display:flex;align-items:center;'>
+                    <img src='{}' width='48' style='margin-right:12px;border-radius:50%;border:2px solid #fff;'>
+                    <span style='font-size:1.5em;font-weight:700;color:#fff;'>{}</span>
+                </div>
+            </div>
+            <div style='margin-top:18px;display:flex;justify-content:space-between;'>
+                <div style='font-size:1.1em;color:#eee;'>Tarih: <b>{}</b></div>
+                <div style='font-size:1.1em;color:#eee;'>Saat: <b>{}</b></div>
+                <div style='font-size:1.1em;color:#eee;'>Lig: <b>{}</b></div>
+            </div>
+        </div>
+        """.format(
+            home_team.get('logo',''), home_team.get('name',''),
+            away_team.get('logo',''), away_team.get('name',''),
+            fixture_details.get('date',''), fixture_details.get('time',''), fixture_details.get('league','')
+        ), unsafe_allow_html=True)
+        st.markdown("---")
+        # Eski detaylı analiz fonksiyonu
         analyze_and_display(home_team, away_team, fixture_id, model_params)
     except Exception as e:
         st.error(f"Analiz sırasında hata: {str(e)}")
