@@ -1424,29 +1424,50 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
 
     pace_index = (home_att + away_att) / max(0.2, avg_home_goals + avg_away_goals)
     
-    # 📊 ELO BAZLI DENGELİ SİSTEM
-    # ELO farkına göre maç karakteristiği belirleme
+    # 📊 GERÇEK GÜÇ FARKI HESAPLAMA (ELO + Takım Performansı)
+    # ELO farkı sıfır/küçük olduğunda takım performansına göre gerçek farkı bul
+    
+    # Takım gücü skoru (hücum + savunma indeksleri)
+    home_power_score = (home_attack_idx * 60) + ((2.0 - home_def_idx) * 40)  # 0-180 arası
+    away_power_score = (away_attack_idx * 60) + ((2.0 - away_def_idx) * 40)
+    
+    # Performans bazlı "sanal ELO farkı"
+    performance_diff = (home_power_score - away_power_score) * 2.5  # -450 ile +450 arası
+    
+    # ELO farkı küçükse performans farkını kullan
+    if abs(elo_diff) < 50:
+        # ELO güvenilmez, performans farkını ağırlıkla kullan
+        adjusted_elo_diff = (elo_diff * 0.3) + (performance_diff * 0.7)
+    elif abs(elo_diff) < 150:
+        # Orta güven, 50-50 karışım
+        adjusted_elo_diff = (elo_diff * 0.6) + (performance_diff * 0.4)
+    else:
+        # ELO güvenilir, ama performansı da ekle
+        adjusted_elo_diff = (elo_diff * 0.85) + (performance_diff * 0.15)
+    
+    # 📊 ELO BAZLI DENGELİ SİSTEM (Düzeltilmiş ELO ile)
+    # Artık "gerçek güç farkı" kullanılıyor
     elo_dominance = 1.0  # Varsayılan dengeli maç
     
-    if abs(elo_diff) < 30:
+    if abs(adjusted_elo_diff) < 30:
         # Çok dengeli maç (ELO farkı <30)
         match_type = "Çok Dengeli"
         elo_dominance = 1.00
         corner_intensity = 0.95  # Az daha az korner (defensif)
         card_intensity = 1.20    # %20 daha fazla kart (kavgalı)
-    elif abs(elo_diff) < 80:
+    elif abs(adjusted_elo_diff) < 80:
         # Dengeli maç (ELO farkı 30-80)
         match_type = "Dengeli"
         elo_dominance = 1.05
         corner_intensity = 1.00  # Normal korner
         card_intensity = 1.10    # %10 daha fazla kart
-    elif abs(elo_diff) < 150:
+    elif abs(adjusted_elo_diff) < 150:
         # Orta seviye fark (ELO farkı 80-150)
         match_type = "Hafif Fark"
         elo_dominance = 1.12
         corner_intensity = 1.08  # %8 daha fazla korner (tek taraflı baskı)
         card_intensity = 1.00    # Normal kart
-    elif abs(elo_diff) < 250:
+    elif abs(adjusted_elo_diff) < 250:
         # Büyük fark (ELO farkı 150-250)
         match_type = "Büyük Fark"
         elo_dominance = 1.20
@@ -1458,6 +1479,7 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
         elo_dominance = 1.30
         corner_intensity = 1.25  # %25 daha fazla korner (total baskı)
         card_intensity = 0.80    # %20 daha az kart (kolay maç)
+        card_intensity = 0.80    # %20 daha az kart (kolay maç)
     
     # 🆕 KORNER TAHMİNLERİ - GELİŞTİRİLMİŞ FORMÜL (ELO + Gol bazlı)
     # Ev sahibi korner tahmini (maç başına)
@@ -1465,13 +1487,14 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     home_attack_bonus = (home_attack_idx - 1.0) * 2.5  # Güçlü hücum = +korner
     home_press_bonus = (2.0 - away_def_idx) * 1.5  # Zayıf rakip savunma = +korner
     
-    # ELO etkisi: Güçlü takım daha fazla korner kazanır
-    if elo_diff > 0:  # Ev sahibi güçlü
-        home_elo_bonus = min(2.0, elo_diff / 100)  # Maksimum +2 korner
-        away_elo_penalty = -min(1.0, elo_diff / 150)  # Maksimum -1 korner
+    # DÜZELTILMIŞ ELO etkisi: Güçlü takım daha fazla korner kazanır
+    if adjusted_elo_diff > 0:  # Ev sahibi güçlü
+        home_elo_bonus = min(2.0, adjusted_elo_diff / 100)  # Maksimum +2 korner
+        away_elo_penalty = -min(1.0, adjusted_elo_diff / 150)  # Maksimum -1 korner
+        away_elo_bonus = 0
     else:  # Deplasman güçlü
-        home_elo_bonus = max(-1.0, elo_diff / 150)  # Maksimum -1 korner
-        away_elo_bonus = min(2.0, abs(elo_diff) / 100)  # Maksimum +2 korner
+        home_elo_bonus = max(-1.0, adjusted_elo_diff / 150)  # Maksimum -1 korner
+        away_elo_bonus = min(2.0, abs(adjusted_elo_diff) / 100)  # Maksimum +2 korner
         away_elo_penalty = 0
     
     home_corners_raw = home_base_corners + home_attack_bonus + home_press_bonus + home_elo_bonus
@@ -1482,7 +1505,7 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     away_attack_bonus = (away_attack_idx - 1.0) * 2.5
     away_press_bonus = (2.0 - home_def_idx) * 1.5
     
-    if elo_diff <= 0:  # Deplasman güçlü
+    if adjusted_elo_diff <= 0:  # Deplasman güçlü
         away_corners_raw = away_base_corners + away_attack_bonus + away_press_bonus + away_elo_bonus
     else:  # Ev sahibi güçlü
         away_corners_raw = away_base_corners + away_attack_bonus + away_press_bonus + away_elo_penalty
