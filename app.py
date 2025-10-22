@@ -1416,23 +1416,31 @@ def main():
     # Admin listesini session_state'e kaydet (API kontrolü için gerekli)
     st.session_state['admin_users'] = admin_users
     
-    # KALICI OTURUM YÖNETİMİ - Cookie kontrolü
-    try:
-        # Authenticator'ın login fonksiyonunu çağırmadan önce cookie kontrol et
-        name, authentication_status, username = authenticator.login(location='main', fields={'Form name': 'Giriş Yap'})
-        
-        # Başarılı giriş sonrası session state'e kaydet
-        if authentication_status:
-            st.session_state['authentication_status'] = True
-            st.session_state['username'] = username
-            st.session_state['name'] = name
-    except Exception as e:
-        # Cookie mekanizması başarısız olursa session_state'den oku
-        if 'authentication_status' not in st.session_state:
-            st.session_state['authentication_status'] = None
+    # KALICI OTURUM YÖNETİMİ - Session state kontrolü
+    # Eğer daha önce giriş yapılmışsa ve authentication_status True ise, tekrar login gösterme
+    if 'authentication_status' in st.session_state and st.session_state.get('authentication_status') is True:
+        # Zaten giriş yapılmış, login formunu gösterme
+        pass
+    else:
+        # Giriş yapılmamış, login formunu göster
+        try:
+            name, authentication_status, username = authenticator.login(location='main', fields={'Form name': 'Giriş Yap'})
+            
+            # Başarılı giriş sonrası session state'e kaydet
+            if authentication_status:
+                st.session_state['authentication_status'] = True
+                st.session_state['username'] = username
+                st.session_state['name'] = name
+                st.rerun()  # Sayfayı yenile
+            elif authentication_status is False:
+                st.session_state['authentication_status'] = False
+            elif authentication_status is None:
+                st.session_state['authentication_status'] = None
+        except Exception as e:
+            if 'authentication_status' not in st.session_state:
+                st.session_state['authentication_status'] = None
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
-        # Login formu zaten authenticator.login() tarafından gösterildi
         
         # Şifre/Kullanıcı Adı Unuttum Bölümü
         st.markdown("---")
