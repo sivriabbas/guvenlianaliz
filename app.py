@@ -360,11 +360,38 @@ def display_best_bet_card(title: str, match_data: pd.Series, prediction_label: s
         st.metric(metric_label, metric_value)
 
         
-def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Dict], model_params: Dict):
+def display_summary_tab(analysis: Dict, team_names: Dict, odds_data: Optional[Dict], model_params: Dict, team_logos: Optional[Dict] = None):
     name_a, name_b = team_names['a'], team_names['b']
+    logo_a = team_logos.get('a', '') if team_logos else ''
+    logo_b = team_logos.get('b', '') if team_logos else ''
+    
     score_a, score_b, probs, confidence, diff = analysis['score_a'], analysis['score_b'], analysis['probs'], analysis['confidence'], analysis['diff']
     max_prob_key = max(probs, key=lambda k: probs[k] if 'win' in k or 'draw' in k else -1)
     decision = f"{name_a} Kazanır" if max_prob_key == 'win_a' else f"{name_b} Kazanır" if max_prob_key == 'win_b' else "Beraberlik"
+    
+    # Takım logoları ve isimlerini başlık olarak göster
+    if logo_a and logo_b:
+        col_logo_a, col_vs, col_logo_b = st.columns([2, 1, 2])
+        with col_logo_a:
+            st.markdown(f"""
+            <div style='text-align: center;'>
+                <img src='{logo_a}' width='80' style='border-radius: 50%; border: 2px solid #667eea;'>
+                <h3 style='margin-top: 10px;'>{name_a}</h3>
+                <p style='color: #888; font-size: 0.9em;'>Ev Sahibi</p>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_vs:
+            st.markdown("<h2 style='text-align: center; margin-top: 40px;'>⚔️ VS ⚔️</h2>", unsafe_allow_html=True)
+        with col_logo_b:
+            st.markdown(f"""
+            <div style='text-align: center;'>
+                <img src='{logo_b}' width='80' style='border-radius: 50%; border: 2px solid #764ba2;'>
+                <h3 style='margin-top: 10px;'>{name_b}</h3>
+                <p style='color: #888; font-size: 0.9em;'>Deplasman</p>
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown("---")
+    
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Ev S. Gol Beklentisi", f"{score_a:.2f}")
     c2.metric("Dep. Gol Beklentisi", f"{score_b:.2f}")
@@ -599,8 +626,24 @@ def display_detailed_betting_tab(analysis: Dict, team_names: Dict, fixture_id: i
         detailed_odds, error = api_utils.get_fixture_detailed_odds(API_KEY, BASE_URL, fixture_id)
     
     if error:
-        st.error(f"Piyasa oranları alınamadı: {error}")
+        st.warning(f"⚠️ Detaylı piyasa oranları alınamadı: {error}")
+        st.info("💡 Model tahminlerini göstermeye devam ediyoruz, ancak piyasa karşılaştırması yapılamayacak.")
         detailed_odds = None
+    elif not detailed_odds:
+        st.warning("⚠️ Bu maç için detaylı bahis oranları bulunamadı.")
+        st.info("💡 Muhtemelen yaklaşan bir maç veya bahis şirketleri henüz oran açmamış.")
+        detailed_odds = None
+    
+    # Debug: Hangi kategorilerde oran var göster
+    if detailed_odds:
+        available_categories = []
+        for category, data in detailed_odds.items():
+            if data:
+                available_categories.append(category)
+        if available_categories:
+            st.success(f"✅ Bulunan oran kategorileri: {', '.join(available_categories)}")
+        else:
+            st.warning("⚠️ API'den veri geldi ancak hiçbir kategori dolu değil.")
     
     # Detaylı oranları işle
     processed_detailed_odds = analysis_logic.process_detailed_odds(detailed_odds) if detailed_odds else {}
@@ -1103,7 +1146,9 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "⚙️ Analiz Parametreleri"]
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(tab_list)
 
-    with tab1: display_summary_tab(analysis, team_names, processed_odds, model_params)
+    team_logos = {'a': logo_a, 'b': logo_b}
+    
+    with tab1: display_summary_tab(analysis, team_names, processed_odds, model_params, team_logos)
     with tab2: display_stats_tab(analysis['stats'], team_names, team_ids, analysis.get('params'))
     with tab3: display_detailed_betting_tab(analysis, team_names, fixture_id, model_params)
     with tab4: display_injuries_tab(fixture_id, team_names, team_ids, league_info)

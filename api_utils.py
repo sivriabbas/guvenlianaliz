@@ -543,8 +543,11 @@ def get_fixture_detailed_odds(api_key: str, base_url: str, fixture_id: int) -> T
     params = {'fixture': fixture_id}
     response, error = make_api_request(api_key, base_url, "odds", params)
     
-    if error or not response:
-        return None, error
+    if error:
+        return None, f"API hatası: {error}"
+    
+    if not response:
+        return None, "Bu maç için hiçbir bahis oranı bulunamadı."
     
     categorized_odds = {
         'match_winner': [],
@@ -557,38 +560,45 @@ def get_fixture_detailed_odds(api_key: str, base_url: str, fixture_id: int) -> T
     }
     
     try:
+        if not response[0].get('bookmakers'):
+            return None, "Bahis şirketleri verisi bulunamadı."
+        
         bookmakers = response[0].get('bookmakers', [])
+        total_bets_found = 0
         
         for bookmaker in bookmakers:
             bets = bookmaker.get('bets', [])
             
             for bet in bets:
                 bet_name = bet.get('name', '').lower()
+                total_bets_found += 1
                 
-                # Kategorizasyon
-                if 'match winner' in bet_name or 'winner' in bet_name:
+                # Kategorizasyon (daha geniş pattern matching)
+                if 'match winner' in bet_name or ('winner' in bet_name and 'half' not in bet_name):
                     categorized_odds['match_winner'].append({
                         'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
                         'values': bet.get('values', [])
                     })
-                elif 'over/under' in bet_name or 'goals' in bet_name:
+                elif 'over/under' in bet_name or 'goals over/under' in bet_name or 'total goals' in bet_name:
                     categorized_odds['over_under'].append({
                         'bookmaker': bookmaker.get('name'),
                         'bet_name': bet.get('name'),
                         'values': bet.get('values', [])
                     })
-                elif 'both teams score' in bet_name or 'btts' in bet_name:
+                elif 'both teams score' in bet_name or 'btts' in bet_name or 'gg/ng' in bet_name:
                     categorized_odds['btts'].append({
                         'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
                         'values': bet.get('values', [])
                     })
-                elif 'handicap' in bet_name or 'spread' in bet_name:
+                elif 'handicap' in bet_name or 'spread' in bet_name or 'asian handicap' in bet_name:
                     categorized_odds['handicap'].append({
                         'bookmaker': bookmaker.get('name'),
                         'bet_name': bet.get('name'),
                         'values': bet.get('values', [])
                     })
-                elif '1st half' in bet_name or 'first half' in bet_name or 'half time' in bet_name:
+                elif '1st half' in bet_name or 'first half' in bet_name or 'half time' in bet_name or 'ht' in bet_name:
                     categorized_odds['first_half'].append({
                         'bookmaker': bookmaker.get('name'),
                         'bet_name': bet.get('name'),
@@ -606,6 +616,13 @@ def get_fixture_detailed_odds(api_key: str, base_url: str, fixture_id: int) -> T
                         'bet_name': bet.get('name'),
                         'values': bet.get('values', [])
                     })
+        
+        # Debug bilgisi için
+        debug_msg = f"Toplam {total_bets_found} bahis türü bulundu. "
+        debug_msg += f"Kategoriler: "
+        for cat, data in categorized_odds.items():
+            if data:
+                debug_msg += f"{cat}({len(data)}), "
         
         return categorized_odds, None
     
