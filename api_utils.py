@@ -263,6 +263,7 @@ def log_admin_action(admin: str, action: str, target: str, details: Optional[Dic
 
 def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
 @st.cache_data(ttl=18000)
+def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
     data = _read_usage_file()
     log = data.get(ADMIN_LOG_KEY, [])
     return log[:limit]
@@ -270,6 +271,7 @@ def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
 
 def reset_daily_usage(username: str = None):
 @st.cache_data(ttl=18000)
+def reset_daily_usage(username: str = None):
     """Sadece belirtilen kullanıcı için veya tüm kullanıcılar için günlük sayacı sıfırlar."""
     data = _read_usage_file()
     today_str = str(date.today())
@@ -290,6 +292,7 @@ def reset_daily_usage(username: str = None):
 
 def get_usage_summary() -> Dict[str, Dict[str, Any]]:
 @st.cache_data(ttl=18000)
+def get_usage_summary() -> Dict[str, Dict[str, Any]]:
     """Tüm kullanıcıların günlük ve aylık kullanım özetini döner."""
     data = _read_usage_file()
     summary = {}
