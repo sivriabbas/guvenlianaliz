@@ -627,6 +627,7 @@ def get_next_team_fixture(api_key: str, base_url: str, team_id: int) -> Tuple[Op
         return None, error
     return (response[0], None) if response else (None, "Takımın yaklaşan maçı bulunamadı.")
 
+@st.cache_data(ttl=3600)  # 1 saat cache - aynı gün içinde tekrar API çağrısı yapma
 def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[int], selected_date: date, bypass_limit_check: bool = False) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     all_fixtures, error_messages = [], []
     date_str = selected_date.strftime('%Y-%m-%d')

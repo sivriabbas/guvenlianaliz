@@ -749,6 +749,7 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab6: display_referee_tab(processed_referee_stats)
     with tab7: display_parameters_tab(analysis['params'], team_names)
 
+@st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache
 def get_top_predictions_today(model_params: Dict, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
     today = date.today()
@@ -1004,7 +1005,11 @@ def build_dashboard_view(model_params: Dict):
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
     col1, col2 = st.columns([1, 3])
     with col1:
-        selected_date = st.date_input("Tarih Seçin", value=date.today())
+        # Session state ile tarih seçimini koru
+        if 'dashboard_date' not in st.session_state:
+            st.session_state.dashboard_date = date.today()
+        selected_date = st.date_input("Tarih Seçin", value=st.session_state.dashboard_date, key="dash_date_input")
+        st.session_state.dashboard_date = selected_date
     with col2:
         stored_favorites = st.session_state.get('favorite_leagues')
         default_leagues = normalize_league_labels(stored_favorites) or get_default_favorite_leagues()
@@ -1015,12 +1020,20 @@ def build_dashboard_view(model_params: Dict):
         other_leagues = [league for league in INTERESTING_LEAGUES.values() if league not in popular_leagues]
         sorted_leagues = popular_leagues + sorted(other_leagues)
         
+        # Session state ile lig seçimini koru
+        if 'dashboard_selected_leagues' not in st.session_state:
+            st.session_state.dashboard_selected_leagues = default_leagues
+        
         selected_names = st.multiselect(
             "Analiz Edilecek Ligleri Seçin",
             options=sorted_leagues,
-            default=default_leagues,
-            placeholder="Lig seçimi yapın..."
+            default=st.session_state.dashboard_selected_leagues,
+            placeholder="Lig seçimi yapın...",
+            key="dash_league_select"
         )
+        
+        # Seçimi session state'e kaydet
+        st.session_state.dashboard_selected_leagues = selected_names
     st.markdown(f"### {selected_date.strftime('%d %B %Y')} Maçları")
     st.markdown("---")
     if not selected_names: 
