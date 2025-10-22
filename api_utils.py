@@ -669,9 +669,30 @@ def get_team_id(api_key: str, base_url: str, team_input: str) -> Optional[Dict[s
     if error:
         st.sidebar.error(error); return None
     if response:
+        # Eğer birden fazla sonuç varsa, popüler takımları üste getir
+        if len(response) > 1:
+            # Popüler takım ID'leri (app.py'den)
+            popular_teams = [
+                645, 646, 644, 643, 3569,  # Türkiye
+                33, 34, 40, 42, 47, 49, 50,  # İngiltere
+                529, 530, 531, 532, 533,  # İspanya
+                489, 487, 488, 492, 496, 500, 505,  # İtalya
+                157, 165, 173, 168, 172,  # Almanya
+                85, 79, 81, 80, 84,  # Fransa
+            ]
+            
+            def get_priority(team_item):
+                team_id = team_item['team']['id']
+                if team_id in popular_teams:
+                    return popular_teams.index(team_id)
+                return 999
+            
+            # Popülerliğe göre sırala
+            response.sort(key=get_priority)
+        
         team = response[0]['team']
         st.sidebar.success(f"✅ Bulunan: {team['name']} ({team['id']})")
-        return {'id': team['id'], 'name': team['name']}
+        return {'id': team['id'], 'name': team['name'], 'logo': team.get('logo')}
     st.sidebar.error(f"❌ Takım bulunamadı: '{team_input}'"); return None
 
 @st.cache_data(ttl=3600)

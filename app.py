@@ -148,6 +148,50 @@ TOP_100_POPULAR_LEAGUES = [
     150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163
 ]
 
+# Popüler Takımlar (ID bazlı - arama sonuçlarında öncelik verilir)
+POPULAR_TEAM_IDS = [
+    # Türkiye
+    645, 646, 644, 643, 3569,  # Fenerbahçe, Beşiktaş, Galatasaray, Trabzonspor, Kasımpaşa
+    # İngiltere
+    33, 34, 40, 42, 47, 49, 50,  # Man United, Newcastle, Liverpool, Arsenal, Tottenham, Chelsea, Man City
+    # İspanya
+    529, 530, 531, 532, 533,  # Barcelona, Atletico, Real Madrid, Valencia, Sevilla
+    # İtalya
+    489, 487, 488, 492, 496, 500, 505,  # AC Milan, Inter, Juventus, Napoli, Lazio, Roma, Atalanta
+    # Almanya
+    157, 165, 173, 168, 172,  # Bayern München, Dortmund, RB Leipzig, Leverkusen, Stuttgart
+    # Fransa
+    85, 79, 81, 80, 84,  # PSG, Marseille, Monaco, Lyon, Lille
+    # Portekiz
+    210, 211, 212, 228,  # Porto, Benfica, Sporting Lizbon, Braga
+    # Hollanda
+    194, 200, 202,  # Ajax, PSV, Feyenoord
+    # Diğer Önemli
+    211, 212, 529, 530, 531, 85, 157,  # Tekrar vurgulananlar
+]
+
+# Popüler Lig Öncelik Sırası (sayısal sıralama için)
+LEAGUE_POPULARITY_ORDER = {
+    # En Popüler (Tier 1)
+    203: 1, 39: 2, 140: 3, 135: 4, 78: 5, 61: 6,  # Süper Lig, Premier, La Liga, Serie A, Bundesliga, Ligue 1
+    # UEFA Kupaları
+    2: 7, 3: 8, 848: 9,
+    # Diğer Önemli Avrupa 1. Ligleri (Tier 2)
+    88: 10, 94: 11, 144: 12, 197: 13, 169: 14, 106: 15,
+    # Avrupa 2. Ligleri (Tier 3)
+    40: 16, 141: 17, 136: 18, 79: 19, 62: 20, 204: 21,
+}
+
+def get_league_priority(league_id: int) -> int:
+    """Lig için öncelik sırası döner (düşük sayı = yüksek öncelik)"""
+    return LEAGUE_POPULARITY_ORDER.get(league_id, 999)
+
+def get_team_priority(team_id: int) -> int:
+    """Takım için öncelik sırası döner (düşük sayı = yüksek öncelik)"""
+    if team_id in POPULAR_TEAM_IDS:
+        return POPULAR_TEAM_IDS.index(team_id)
+    return 999
+
 DEFAULT_LEAGUES = INTERESTING_LEAGUES.copy()
 LEGACY_LEAGUE_NAMES = {name: lid for lid, name in DEFAULT_LEAGUES.items()}
 
@@ -1105,6 +1149,9 @@ def build_manual_view(model_params: Dict):
     if not filtered_leagues:
         st.info("Seçilen ülke için güncel lig bulunamadı.")
     else:
+        # Ligleri popülerlik sırasına göre sırala (popüler ligler üstte)
+        filtered_leagues.sort(key=lambda x: get_league_priority(x[0]))
+        
         league_labels = [label for _, label in filtered_leagues]
         selected_league_label = st.selectbox("Lig Seçin", options=league_labels, key="manual_league_select")
         league_id = get_league_id_from_display(selected_league_label)
@@ -1214,10 +1261,18 @@ def render_code_finder(embed: bool = False, key_prefix: str = "code_finder"):
         st.warning("Bu lig için takım bilgisi bulunamadı.")
         return
 
-    teams_data = sorted([
-        {'Takım Adı': item['team']['name'], 'Takım ID': item['team']['id']}
+    # Takımları popülerlik ve alfabetik sıraya göre sırala
+    teams_data = [
+        {
+            'Takım Adı': item['team']['name'], 
+            'Takım ID': item['team']['id'],
+            '_priority': get_team_priority(item['team']['id'])  # Popülerlik skoru
+        }
         for item in teams_response
-    ], key=lambda row: row['Takım Adı'])
+    ]
+    
+    # Önce popülerliğe göre, sonra alfabetik sırala
+    teams_data.sort(key=lambda row: (row['_priority'], row['Takım Adı']))
 
     search_term = st.text_input("Takım ara", key=f"{key_prefix}_search", placeholder="Takım adı girin...")
     if search_term:
@@ -1229,7 +1284,9 @@ def render_code_finder(embed: bool = False, key_prefix: str = "code_finder"):
         st.info("Arama kriterine uygun takım bulunamadı.")
         return
 
-    st.dataframe(pd.DataFrame(filtered_data), hide_index=True, use_container_width=True)
+    # DataFrame için _priority kolonunu kaldır
+    display_data = [{'Takım Adı': row['Takım Adı'], 'Takım ID': row['Takım ID']} for row in filtered_data]
+    st.dataframe(pd.DataFrame(display_data), hide_index=True, use_container_width=True)
 
 
 def build_codes_view():
