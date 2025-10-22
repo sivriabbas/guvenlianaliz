@@ -505,14 +505,14 @@ def get_referee_stats(api_key: str, base_url: str, referee_id: int, season: int)
     return (response[0], None) if response else (None, "Hakem istatistiği bulunamadı.")
 
 @st.cache_data(ttl=86400)
-def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: int, season: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: int, season: int, skip_limit: bool = False) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     params = {'team': team_id, 'league': league_id, 'season': season}
-    return make_api_request(api_key, base_url, "teams/statistics", params)
+    return make_api_request(api_key, base_url, "teams/statistics", params, skip_limit=skip_limit)
 
 @st.cache_data(ttl=3600)
-def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit: int = 10) -> Optional[List[Dict]]:
+def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit: int = 10, skip_limit: bool = False) -> Optional[List[Dict]]:
     params = {'team': team_id, 'last': limit, 'status': 'FT'}
-    matches, error = make_api_request(api_key, base_url, "fixtures", params)
+    matches, error = make_api_request(api_key, base_url, "fixtures", params, skip_limit=skip_limit)
     if error or not matches:
         return None
     stats_list = []
@@ -723,8 +723,8 @@ def get_team_form_sequence(api_key: str, base_url: str, team_id: int, limit: int
     return form_data
 
 @st.cache_data(ttl=86400)
-def get_team_league_info(api_key: str, base_url: str, team_id: int) -> Optional[Dict[str, Any]]:
-    response, error = make_api_request(api_key, base_url, "leagues", {'team': team_id, 'current': 'true'})
+def get_team_league_info(api_key: str, base_url: str, team_id: int, skip_limit: bool = False) -> Optional[Dict[str, Any]]:
+    response, error = make_api_request(api_key, base_url, "leagues", {'team': team_id, 'current': 'true'}, skip_limit=skip_limit)
     if error or not response: return None
     league, seasons = response[0]['league'], response[0]['seasons']
     season = next((s['year'] for s in seasons if s['current']), seasons[-1]['year'])

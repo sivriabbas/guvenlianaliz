@@ -12,12 +12,15 @@ Aşağıdaki işlemler **sistem API hakkı** kullanır ve kullanıcı kotasında
 - ✅ Günün öne çıkan tahminleri
 - ✅ Popüler liglerdeki maçların listelenmesi
 - ✅ Özet tahmin kartları
+- ✅ Tüm özet analizler (`use_system_api=True`)
 
 #### 2. **Maç Panosu**
 - ✅ Tarih ve lig bazlı maç araması
 - ✅ Maç listesinin görüntülenmesi
-- ✅ Özet AI tahminleri (tablo görünümü)
+- ✅ **Özet AI tahminleri (tablo görünümü)** ← YENİ
 - ✅ En iyi bahis önerileri
+- ✅ AI güven puanı hesaplamaları
+- ✅ 2.5 üst/alt ve KG var/yok olasılıkları
 
 #### 3. **Manuel Analiz - Favori Ligler**
 - ✅ Favori liglerdeki maçların listelenmesi (bugün/yarın)
@@ -49,18 +52,32 @@ Detaylı analiz şunları içerir:
 #### Cache Kullanımı
 ```python
 @st.cache_data(ttl=86400)  # 24 saat
-def analyze_fixture_summary(fixture, model_params):
+def analyze_fixture_summary(fixture, model_params, use_system_api=False):
+    # use_system_api=True → Sistem API kullanır
     # Özet analiz cache'lenir
     # Tekrar API çağrısı yapılmaz
 ```
 
+#### Sistem API ile Özet Analiz
+```python
+# Maç Panosunda - Sistem API kullanımı
+summary = analyze_fixture_summary(
+    fixture, model_params, 
+    use_system_api=True  # Kullanıcı hakkı tüketmez
+)
+```
+
 #### Bypass Mekanizması
 ```python
-# Sistem API'si kullanımı
+# Maç listesi çekme - Sistem API'si
 fixtures, error = api_utils.get_fixtures_by_date(
     API_KEY, BASE_URL, selected_ids, selected_date, 
     bypass_limit_check=True  # Kullanıcı hakkı tüketmez
 )
+
+# Analiz fonksiyonlarında
+api_utils.get_team_statistics(api_key, base_url, team_id, 
+    league_id, season, skip_limit=True)  # Sistem API
 ```
 
 ### 💡 Kullanıcı İçin İpuçları
@@ -94,9 +111,12 @@ def make_api_request(api_key, base_url, endpoint, params, skip_limit=False):
 |-------|----------|---------|
 | Ana sayfa yüklendiğinde | Sistem | 0 |
 | Maç panosu araması | Sistem | 0 |
-| 20 maçın özet analizi | Sistem (Cache) | 0 |
+| 20 maçın özet analizi | Sistem | **0** ← YENİ |
 | 1 detaylı maç analizi | Kullanıcı | ~8-12 |
 | Manuel takım analizi | Kullanıcı | ~8-12 |
+
+**ÖNCEDEN**: 20 maçın analizi ~160-240 API harcardı  
+**ARTIK**: 20 maçın özet analizi 0 API harcar (Sistem API)
 
 ### ⚙️ Yapılandırma
 

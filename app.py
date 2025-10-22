@@ -1065,10 +1065,15 @@ def display_parameters_tab(params: Dict, team_names: Dict):
         st.metric("Elo Farkı", f"{params.get('elo_diff', 0):+.0f}")
 
 @st.cache_data(ttl=86400)  # 24 saat cache - API tasarrufu
-def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]:
+def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: bool = False) -> Optional[Dict]:
+    """
+    Maç özeti analizi yapar.
+    use_system_api=True: Sistem API'si kullanır (kullanıcı hakkı tüketmez)
+    use_system_api=False: Kullanıcı API'si kullanır
+    """
     try:
         id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
-        league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a)
+        league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=use_system_api)
         
         # Eğer takımdan lig bilgisi alınamazsa, fixture'daki lig bilgisini kullan
         if not league_info and 'league_id' in fixture:
@@ -1080,7 +1085,7 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
         if not league_info: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Lig bilgisi alınamadı")
             return None
-        analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture['match_id'], league_info, model_params, LIG_ORTALAMA_GOL)
+        analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture['match_id'], league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=use_system_api)
         if not analysis: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Analiz verisi oluşturulamadı")
             return None
@@ -1271,7 +1276,8 @@ def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_use
     analyzed_fixtures = []
     for idx, fixture in enumerate(fixtures[:max_matches], 1):
         try:
-            summary = analyze_fixture_summary(fixture, model_params)
+            # ANA SAYFA - SİSTEM API'Sİ KULLAN
+            summary = analyze_fixture_summary(fixture, model_params, use_system_api=True)
             if summary:
                 confidence = summary.get('AI Güven Puanı', 0)
                 print(f"  {idx}. {summary['Ev Sahibi']} vs {summary['Deplasman']}: Güven={confidence:.1f}%")  # DEBUG
@@ -1440,7 +1446,8 @@ def build_dashboard_view(model_params: Dict):
     if error: st.error(f"Maçlar çekilirken bir hata oluştu:\n\n{error}"); return
     if not fixtures: st.info(f"Seçtiğiniz tarih ve liglerde maç bulunamadı."); return
     progress_bar = st.progress(0, text="Maçlar analiz ediliyor...")
-    analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f['home_name']}", ))]
+    # MAÇ PANOSUNDA ÖZET ANALİZ - SİSTEM API'Sİ KULLAN
+    analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params, use_system_api=True)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f['home_name']}", ))]
     progress_bar.empty()
     if not analyzed_fixtures: st.error("Hiçbir maç analiz edilemedi."); return
     df = pd.DataFrame(analyzed_fixtures)

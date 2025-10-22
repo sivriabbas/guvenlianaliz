@@ -99,14 +99,14 @@ def process_referee_data(referee_data: Optional[Dict]) -> Optional[Dict]:
         return None
 
 @st.cache_data(ttl=86400)
-def get_league_goal_baselines(api_key: str, base_url: str, league_info: Dict, default_avg: float) -> Dict[str, float]:
+def get_league_goal_baselines(api_key: str, base_url: str, league_info: Dict, default_avg: float, skip_api_limit: bool = False) -> Dict[str, float]:
     params = {
         'league': league_info['league_id'],
         'season': league_info['season'],
         'status': 'FT',
         'last': 250,
     }
-    fixtures, _ = api_utils.make_api_request(api_key, base_url, "fixtures", params)
+    fixtures, _ = api_utils.make_api_request(api_key, base_url, "fixtures", params, skip_limit=skip_api_limit)
     totals: List[int] = []
     home_goals = 0
     away_goals = 0
@@ -156,9 +156,9 @@ def get_dynamic_league_average(api_key: str, base_url: str, league_info: Dict, d
     return baselines['total_avg']
 
 @st.cache_data(ttl=86400)
-def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league_id: int, season: int) -> Dict:
+def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league_id: int, season: int, skip_api_limit: bool = False) -> Dict:
     """Genel istatistikleri ve takıma özel ev sahibi avantajını hesaplar."""
-    stats_data, error = api_utils.get_team_statistics(api_key, base_url, team_id, league_id, season)
+    stats_data, error = api_utils.get_team_statistics(api_key, base_url, team_id, league_id, season, skip_api_limit)
     if error or not stats_data:
         # Varsayılan değerler döndür - sistem yine de çalışabilsin
         return {
@@ -1015,14 +1015,14 @@ def generate_prediction_reasons(analysis_data: Dict, team_names: Dict) -> List[s
     return reasons[:5]  # 3'ten 5'e çıkardık - daha fazla faktör göster
 
 @st.cache_data(ttl=300)  # 5 dakika - Elo güncellemeleri için kısa cache
-def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, default_avg):
-    baselines = get_league_goal_baselines(api_key, base_url, league_info, default_avg)
+def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, default_avg, skip_api_limit=False):
+    baselines = get_league_goal_baselines(api_key, base_url, league_info, default_avg, skip_api_limit)
     avg_goals = baselines['total_avg'] or default_avg
     avg_home_goals = baselines['home_avg'] or (avg_goals * 0.55)
     avg_away_goals = baselines['away_avg'] or max(0.4, avg_goals - avg_home_goals)
 
-    stats_a = calculate_general_stats_v2(api_key, base_url, id_a, league_info['league_id'], league_info['season'])
-    stats_b = calculate_general_stats_v2(api_key, base_url, id_b, league_info['league_id'], league_info['season'])
+    stats_a = calculate_general_stats_v2(api_key, base_url, id_a, league_info['league_id'], league_info['season'], skip_api_limit)
+    stats_b = calculate_general_stats_v2(api_key, base_url, id_b, league_info['league_id'], league_info['season'], skip_api_limit)
     # Artık her zaman varsayılan değerler dönüyor, None kontrolü gereksiz
 
     team_home_adv = stats_a.get('team_specific_home_adv', 1.12)
@@ -1048,8 +1048,8 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     home_advantage = team_home_adv * max(0.96, min(1.12, league_bias)) * quality_adjust
     home_advantage = max(1.02, min(1.20, home_advantage))
 
-    last_matches_a = api_utils.get_team_last_matches_stats(api_key, base_url, id_a)
-    last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b)
+    last_matches_a = api_utils.get_team_last_matches_stats(api_key, base_url, id_a, skip_api_limit)
+    last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b, skip_api_limit)
     weighted_stats_a = calculate_weighted_stats(last_matches_a) if last_matches_a else {}
     weighted_stats_b = calculate_weighted_stats(last_matches_b) if last_matches_b else {}
     
