@@ -576,6 +576,15 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
             })
         except (KeyError, TypeError):
             continue
+    
+    # DEBUG: API'den gelen veriyi kontrol et
+    if stats_list:
+        print(f"\n🔍 API'DEN GELEN VERİ (Team {team_id}):")
+        for i, stat in enumerate(stats_list[:3]):  # İlk 3 maçı göster
+            print(f"  Maç {i+1}: Korner={stat['corners_for']}/{stat['corners_against']}, Kartlar={stat['yellow_cards']}/{stat['red_cards']}")
+    else:
+        print(f"\n⚠️ API'DEN VERİ GELMEDİ (Team {team_id})")
+    
     return stats_list
 
 @st.cache_data(ttl=3600)
