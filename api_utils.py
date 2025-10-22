@@ -75,7 +75,6 @@ def get_current_usage(username: str) -> Dict[str, Any]:
     return user_data
 
 def update_usage(username: str, current_data: Dict[str, Any]):
-@st.cache_data(ttl=18000)
     """Kullanıcının API kullanım sayacını günceller ve dosyaya yazar."""
     try:
         with open(USAGE_FILE, 'r', encoding='utf-8') as f:
@@ -98,7 +97,6 @@ def update_usage(username: str, current_data: Dict[str, Any]):
 
 
 def _read_usage_file() -> Dict[str, Any]:
-@st.cache_data(ttl=18000)
     try:
         with open(USAGE_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -107,13 +105,11 @@ def _read_usage_file() -> Dict[str, Any]:
 
 
 def _write_usage_file(data: Dict[str, Any]):
-@st.cache_data(ttl=18000)
     with open(USAGE_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
 def get_pending_notification(username: str) -> Optional[Dict[str, str]]:
-@st.cache_data(ttl=18000)
     """Kullanıcının bekleyen bildirimini getirir."""
     try:
         data = _read_usage_file()
@@ -124,7 +120,6 @@ def get_pending_notification(username: str) -> Optional[Dict[str, str]]:
 
 
 def clear_pending_notification(username: str):
-@st.cache_data(ttl=18000)
     """Kullanıcının bildirimini temizler."""
     try:
         data = _read_usage_file()
@@ -138,7 +133,6 @@ def clear_pending_notification(username: str):
 
 
 def ensure_user_limits(username: str, tier: str):
-@st.cache_data(ttl=18000)
     """Ensure that a user has an explicit per-user daily limit in the usage file.
     If not present, set it to the tier default (ücretsiz/ücretli).
     Returns the effective daily limit that was set or already present.
@@ -163,7 +157,6 @@ def ensure_user_limits(username: str, tier: str):
 
 
 def set_user_daily_limit(username: str, limit: int):
-@st.cache_data(ttl=18000)
     data = _read_usage_file()
     limits = data.get('_limits', {})
     prev_limit = limits.get(username)
@@ -201,7 +194,6 @@ def set_user_daily_limit(username: str, limit: int):
 
 
 def set_user_monthly_limit(username: str, limit: int):
-@st.cache_data(ttl=18000)
     data = _read_usage_file()
     mlimits = data.get('_monthly_limits', {})
     prev_mlimit = mlimits.get(username)
@@ -238,7 +230,6 @@ def set_user_monthly_limit(username: str, limit: int):
 
 
 def log_admin_action(admin: str, action: str, target: str, details: Optional[Dict[str, Any]] = None):
-@st.cache_data(ttl=18000)
     """Append an admin action entry into the usage file under '_admin_log'.
     Entry fields: ts (UTC iso), admin, action, target, details
     """
@@ -261,7 +252,6 @@ def log_admin_action(admin: str, action: str, target: str, details: Optional[Dic
         pass
 
 
-def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
 @st.cache_data(ttl=18000)
 def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
     data = _read_usage_file()
@@ -269,7 +259,6 @@ def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
     return log[:limit]
 
 
-def reset_daily_usage(username: str = None):
 @st.cache_data(ttl=18000)
 def reset_daily_usage(username: str = None):
     """Sadece belirtilen kullanıcı için veya tüm kullanıcılar için günlük sayacı sıfırlar."""
@@ -290,7 +279,6 @@ def reset_daily_usage(username: str = None):
     _write_usage_file(data)
 
 
-def get_usage_summary() -> Dict[str, Dict[str, Any]]:
 @st.cache_data(ttl=18000)
 def get_usage_summary() -> Dict[str, Dict[str, Any]]:
     """Tüm kullanıcıların günlük ve aylık kullanım özetini döner."""
@@ -311,14 +299,12 @@ def get_usage_summary() -> Dict[str, Dict[str, Any]]:
 
 
 def _get_ip_assignments() -> Dict[str, str]:
-@st.cache_data(ttl=18000)
     """Return the mapping of IP -> username from the usage file (best-effort)."""
     data = _read_usage_file()
     return data.get('_ip_assignments', {})
 
 
 def _set_ip_assignment(ip: str, username: str):
-@st.cache_data(ttl=18000)
     """Assign an IP to a username (overwrites existing assignment)."""
     data = _read_usage_file()
     ipmap = data.get('_ip_assignments', {})
@@ -328,7 +314,6 @@ def _set_ip_assignment(ip: str, username: str):
 
 
 def register_ip_assignment(username: str, tier: str, ip: str) -> Tuple[bool, Optional[str]]:
-@st.cache_data(ttl=18000)
     """Try to assign API access for `username` tied to `ip`."""
     if not ip:
         return False, 'IP belirtilmediği için atama yapılamadı.'
@@ -349,7 +334,6 @@ def register_ip_assignment(username: str, tier: str, ip: str) -> Tuple[bool, Opt
 
 
 def get_client_ip() -> str:
-@st.cache_data(ttl=18000)
     """Best-effort client IP detection."""
     try:
         import streamlit as _st
@@ -374,7 +358,6 @@ def get_client_ip() -> str:
         return ''
 
 def set_user_tier(username: str, tier: str) -> Tuple[bool, Optional[str]]:
-@st.cache_data(ttl=18000)
     """
     Kullanıcının seviyesini (tier) hem config.yaml'de hem de günlük limitini user_usage.json'da günceller.
     """
@@ -406,7 +389,6 @@ def set_user_tier(username: str, tier: str) -> Tuple[bool, Optional[str]]:
     return True, f"Kullanıcı {username} başarıyla {tier} seviyesine geçirildi ve limiti {new_limit} olarak ayarlandı."
 
 def check_api_limit() -> Tuple[bool, Optional[str]]:
-@st.cache_data(ttl=18000)
     """API isteği yapmadan önce limiti kontrol eder. SAYACI ARTIRMAZ - sadece kontrol eder."""
     try:
         if not HAS_STREAMLIT:
@@ -451,7 +433,6 @@ def check_api_limit() -> Tuple[bool, Optional[str]]:
     return True, None
 
 def increment_api_usage() -> None:
-@st.cache_data(ttl=18000)
     """API kullanım sayacını artırır - sadece gerçek HTTP isteği yapıldığında çağrılmalı."""
     try:
         if not HAS_STREAMLIT:
@@ -472,7 +453,6 @@ def increment_api_usage() -> None:
         update_usage(username, user_usage)
 
 def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[str, Any], skip_limit: bool = False) -> Tuple[Optional[Any], Optional[str]]:
-@st.cache_data(ttl=18000)
     if not skip_limit:
         can_request, error_message = check_api_limit()
         if not can_request:
@@ -499,12 +479,10 @@ def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[st
 
 @st.cache_data(ttl=86400)
 def get_player_stats(api_key: str, base_url: str, player_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     return make_api_request(api_key, base_url, "players", {'id': player_id, 'season': season})
 
 @st.cache_data(ttl=86400)
 def get_fixture_details(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-@st.cache_data(ttl=18000)
     response, error = make_api_request(api_key, base_url, "fixtures", {'id': fixture_id})
     if error:
         return None, error
@@ -512,7 +490,6 @@ def get_fixture_details(api_key: str, base_url: str, fixture_id: int) -> Tuple[O
 
 @st.cache_data(ttl=86400)
 def get_referee_stats(api_key: str, base_url: str, referee_id: int, season: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-@st.cache_data(ttl=18000)
     response, error = make_api_request(api_key, base_url, "referees", {'id': referee_id, 'season': season})
     if error:
         return None, error
@@ -520,13 +497,11 @@ def get_referee_stats(api_key: str, base_url: str, referee_id: int, season: int)
 
 @st.cache_data(ttl=86400)
 def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: int, season: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-@st.cache_data(ttl=18000)
     params = {'team': team_id, 'league': league_id, 'season': season}
     return make_api_request(api_key, base_url, "teams/statistics", params)
 
 @st.cache_data(ttl=3600)
 def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit: int = 10) -> Optional[List[Dict]]:
-@st.cache_data(ttl=18000)
     params = {'team': team_id, 'last': limit, 'status': 'FT'}
     matches, error = make_api_request(api_key, base_url, "fixtures", params)
     if error or not matches:
@@ -546,23 +521,19 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
 
 @st.cache_data(ttl=3600)
 def get_fixture_odds(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     params = {'fixture': fixture_id, 'bet': 1}
     return make_api_request(api_key, base_url, "odds", params)
 
 @st.cache_data(ttl=86400) 
 def get_fixture_injuries(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     return make_api_request(api_key, base_url, "injuries", {'fixture': fixture_id})
 
 @st.cache_data(ttl=86400)
 def get_squad_player_stats(api_key: str, base_url: str, team_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     return make_api_request(api_key, base_url, "players", {'team': team_id, 'season': season})
 
 @st.cache_data(ttl=86400)
 def get_league_standings(api_key: str, base_url: str, league_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     response, error = make_api_request(api_key, base_url, "standings", {'league': league_id, 'season': season})
     if error: return None, error
     if response and response[0]['league']['standings']:
@@ -571,7 +542,6 @@ def get_league_standings(api_key: str, base_url: str, league_id: int, season: in
 
 @st.cache_data(ttl=86400)
 def get_all_current_leagues(api_key: str, base_url: str) -> Tuple[List[Dict[str, Any]], Optional[str]]:
-@st.cache_data(ttl=18000)
     response, error = make_api_request(api_key, base_url, "leagues", {'current': 'true'}, skip_limit=True)
     if error or not response:
         return [], error
@@ -608,17 +578,14 @@ def get_all_current_leagues(api_key: str, base_url: str) -> Tuple[List[Dict[str,
 
 @st.cache_data(ttl=86400)
 def get_h2h_matches(api_key: str, base_url: str, team_a_id: int, team_b_id: int, limit: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     return make_api_request(api_key, base_url, "fixtures/headtohead", {'h2h': f"{team_a_id}-{team_b_id}", 'last': limit})
 
 @st.cache_data(ttl=604800)
 def get_teams_by_league(api_key: str, base_url: str, league_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     return make_api_request(api_key, base_url, "teams", {'league': league_id, 'season': season})
 
 @st.cache_data(ttl=86400)
 def get_team_form_sequence(api_key: str, base_url: str, team_id: int, limit: int = 10) -> Optional[List[Dict[str, str]]]:
-@st.cache_data(ttl=18000)
     matches, error = make_api_request(api_key, base_url, "fixtures", {'team': team_id, 'last': limit, 'status': 'FT'})
     if error or not matches:
         return None
@@ -643,7 +610,6 @@ def get_team_form_sequence(api_key: str, base_url: str, team_id: int, limit: int
 
 @st.cache_data(ttl=86400)
 def get_team_league_info(api_key: str, base_url: str, team_id: int) -> Optional[Dict[str, Any]]:
-@st.cache_data(ttl=18000)
     response, error = make_api_request(api_key, base_url, "leagues", {'team': team_id, 'current': 'true'})
     if error or not response: return None
     league, seasons = response[0]['league'], response[0]['seasons']
@@ -651,7 +617,6 @@ def get_team_league_info(api_key: str, base_url: str, team_id: int) -> Optional[
     return {'league_id': league['id'], 'season': season}
 
 def find_upcoming_fixture(api_key: str, base_url: str, team_a_id: int, team_b_id: int, season: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-@st.cache_data(ttl=18000)
     fixtures, error = make_api_request(api_key, base_url, "fixtures", {'team': team_a_id, 'season': season, 'status': 'NS'})
     if error: return None, error
     if fixtures:
@@ -661,7 +626,6 @@ def find_upcoming_fixture(api_key: str, base_url: str, team_a_id: int, team_b_id
     return None, None
     
 def get_next_team_fixture(api_key: str, base_url: str, team_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-@st.cache_data(ttl=18000)
     """Belirtilen takımın sıradaki ilk maçını getirir."""
     response, error = make_api_request(api_key, base_url, "fixtures", {'team': team_id, 'next': 1})
     if error:
@@ -738,9 +702,7 @@ def get_team_id(api_key: str, base_url: str, team_input: str) -> Optional[Dict[s
     st.sidebar.error(f"❌ Takım bulunamadı: '{team_input}'"); return None
 
 @st.cache_data(ttl=18000)
-@st.cache_data(ttl=18000)
 def get_team_injuries(api_key: str, base_url: str, team_id: int, fixture_id: Optional[int] = None) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
-@st.cache_data(ttl=18000)
     """
     Takımın sakatlık ve ceza bilgilerini getirir.
     Returns: (injuries_list, error_message)
