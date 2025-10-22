@@ -1064,12 +1064,14 @@ def display_parameters_tab(params: Dict, team_names: Dict):
         st.metric("Tempo Endeksi", f"x{params.get('pace_index', 1.0):.2f}")
         st.metric("Elo Farkı", f"{params.get('elo_diff', 0):+.0f}")
 
-@st.cache_data(ttl=86400)  # 24 saat cache - API tasarrufu
+@st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - daha sık güncelleme
 def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: bool = False) -> Optional[Dict]:
     """
     Maç özeti analizi yapar.
     use_system_api=True: Sistem API'si kullanır (kullanıcı hakkı tüketmez)
     use_system_api=False: Kullanıcı API'si kullanır
+    
+    NOT: use_system_api parametresi cache key'e dahildir
     """
     try:
         id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
@@ -1232,7 +1234,7 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     with tab7: display_referee_tab(processed_referee_stats)
     with tab8: display_parameters_tab(analysis['params'], team_names)
 
-@st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache
+@st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - sık güncelleme
 def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_user: bool, top_n: int = 5) -> List[Dict]:
     """Bugünün en yüksek güvenli tahminlerini getirir - API limiti tüketmez"""
     
@@ -2246,6 +2248,29 @@ def main():
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
+        
+        # ============================================================================
+        # CACHE YÖNETİMİ
+        # ============================================================================
+        with st.sidebar.expander("🔄 Önbellek Yönetimi", expanded=False):
+            st.markdown("**Önbelleği Temizle**")
+            st.caption("Eski analiz sonuçlarını temizler ve yeni veriler çeker.")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🗑️ Cache Temizle", use_container_width=True, type="primary"):
+                    st.cache_data.clear()
+                    st.success("✅ Tüm önbellek temizlendi!")
+                    st.info("Sayfa yenilenecek...")
+                    import time
+                    time.sleep(1)
+                    st.rerun()
+            
+            with col2:
+                if st.button("🔄 Sayfayı Yenile", use_container_width=True):
+                    st.rerun()
+            
+            st.caption("⏱️ Cache süreleri: Analizler 1 saat, Takım verileri 24 saat")
         
         st.sidebar.markdown("---")
         
