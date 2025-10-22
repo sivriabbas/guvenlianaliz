@@ -35,14 +35,14 @@ TIER_LIMITS = {
 # Admin action log is stored inside the usage file under the key '_admin_log' as a list of entries
 ADMIN_LOG_KEY = '_admin_log'
 
-def get_api_limit_for_user(tier: str) -> int:
 @st.cache_data(ttl=18000)
+def get_api_limit_for_user(tier: str) -> int:
     """Kullanıcının seviyesine göre API limitini döner."""
     # Varsayılan olarak bilinmeyen bir tier için ücretsiz tier limiti uygulanır
     return TIER_LIMITS.get(tier, TIER_LIMITS['ücretsiz'])
 
-def get_current_usage(username: str) -> Dict[str, Any]:
 @st.cache_data(ttl=18000)
+def get_current_usage(username: str) -> Dict[str, Any]:
     """Kullanıcının mevcut API kullanım verisini dosyadan okur."""
     today_str = str(date.today())
     month_str = date.today().strftime('%Y-%m')
