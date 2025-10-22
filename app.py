@@ -1065,29 +1065,14 @@ def display_parameters_tab(params: Dict, team_names: Dict):
         st.metric("Elo Farkı", f"{params.get('elo_diff', 0):+.0f}")
 
 @st.cache_data(ttl=3600, show_spinner=False)  # 1 saat cache - daha sık güncelleme
-def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: bool = False) -> Optional[Dict]:
+def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]:
     """
-    Maç özeti analizi yapar.
-    use_system_api=True: Sistem API'si kullanır (kullanıcı hakkı tüketmez)
-    use_system_api=False: Kullanıcı API'si kullanır
-    
-    NOT: use_system_api parametresi cache key'e dahildir.
-    ÖNEMLI: Artık tüm API çağrıları skip_limit=True ile yapılıyor (API hakkı alt seviyede tüketilmiyor).
-    Kullanıcı API hakkı sadece use_system_api=False ise ÜST SEVİYEDE tüketilir.
+    Maç özeti analizi yapar - SADECE SİSTEM API KULLANIR (kullanıcı hakkı tüketmez).
+    Bu fonksiyon maç panosu için kullanılır.
     """
-    # KULLANICI API HAKKI YÖNETİMİ - ÜST SEVİYEDE
-    if not use_system_api:
-        # Detaylı analiz için kullanıcı API hakkı tüket
-        can_request, error_msg = api_utils.check_api_limit()
-        if not can_request:
-            st.error(f"API Limit Hatası: {error_msg}")
-            return None
-        # Kullanıcı hakkını tüket
-        api_utils.increment_api_usage()
-    
     try:
         id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
-        # Artık HER ZAMAN skip_limit=True - API hakkı üst seviyede yönetiliyor
+        # HER ZAMAN skip_limit=True - sistem API'si
         league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a, skip_limit=True)
         
         # Eğer takımdan lig bilgisi alınamazsa, fixture'daki lig bilgisini kullan
@@ -1100,7 +1085,7 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: b
         if not league_info: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Lig bilgisi alınamadı")
             return None
-        # Artık HER ZAMAN skip_api_limit=True - API hakkı üst seviyede yönetiliyor
+        # HER ZAMAN skip_api_limit=True - sistem API'si
         analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture['match_id'], league_info, model_params, LIG_ORTALAMA_GOL, skip_api_limit=True)
         if not analysis: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Analiz verisi oluşturulamadı")
@@ -1138,11 +1123,11 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict, use_system_api: b
         st.error(f"❌ {fixture.get('home_name', '?')} vs {fixture.get('away_name', '?')}: Hata - {str(e)}")
         return None
 
-@st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache - tekrar analiz engellensin
 def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, model_params: Dict, league_id: int = None, season: int = None):
     """
     Detaylı maç analizi yapar ve gösterir.
-    Bu fonksiyon KULLANICI API HAKKI TÜKETİR.
+    Bu fonksiyon KULLANICI API HAKKI TÜKETİR (her çağrıda 1 kredi).
+    Cache yok - her çağrıda yeni analiz yapılır ve API hakkı tüketilir.
     """
     # KULLANICI API HAKKI KONTROLÜ - ÜST SEVİYEDE
     can_request, error_msg = api_utils.check_api_limit()
@@ -1306,8 +1291,8 @@ def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_use
     analyzed_fixtures = []
     for idx, fixture in enumerate(fixtures[:max_matches], 1):
         try:
-            # ANA SAYFA - SİSTEM API'Sİ KULLAN
-            summary = analyze_fixture_summary(fixture, model_params, use_system_api=True)
+            # ANA SAYFA - SİSTEM API'Sİ KULLAN (use_system_api parametresi kaldırıldı, artık her zaman sistem API)
+            summary = analyze_fixture_summary(fixture, model_params)
             if summary:
                 confidence = summary.get('AI Güven Puanı', 0)
                 print(f"  {idx}. {summary['Ev Sahibi']} vs {summary['Deplasman']}: Güven={confidence:.1f}%")  # DEBUG
@@ -1476,8 +1461,8 @@ def build_dashboard_view(model_params: Dict):
     if error: st.error(f"Maçlar çekilirken bir hata oluştu:\n\n{error}"); return
     if not fixtures: st.info(f"Seçtiğiniz tarih ve liglerde maç bulunamadı."); return
     progress_bar = st.progress(0, text="Maçlar analiz ediliyor...")
-    # MAÇ PANOSUNDA ÖZET ANALİZ - SİSTEM API'Sİ KULLAN
-    analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params, use_system_api=True)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f['home_name']}", ))]
+    # MAÇ PANOSUNDA ÖZET ANALİZ - SİSTEM API'Sİ KULLAN (use_system_api parametresi kaldırıldı, artık her zaman sistem API)
+    analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f['home_name']}", ))]
     progress_bar.empty()
     if not analyzed_fixtures: st.error("Hiçbir maç analiz edilemedi."); return
     df = pd.DataFrame(analyzed_fixtures)
@@ -2278,29 +2263,30 @@ def main():
             st.rerun()
         
         # ============================================================================
-        # CACHE YÖNETİMİ
+        # CACHE YÖNETİMİ - SADECE ADMIN
         # ============================================================================
-        with st.sidebar.expander("🔄 Önbellek Yönetimi", expanded=False):
-            st.markdown("**Önbelleği Temizle**")
-            st.caption("Eski analiz sonuçlarını temizler ve yeni veriler çeker.")
+        if is_admin:
+            with st.sidebar.expander("🔄 Önbellek Yönetimi", expanded=False):
+                st.markdown("**Önbelleği Temizle**")
+                st.caption("Eski analiz sonuçlarını temizler ve yeni veriler çeker.")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🗑️ Cache Temizle", use_container_width=True, type="primary"):
+                        st.cache_data.clear()
+                        st.success("✅ Tüm önbellek temizlendi!")
+                        st.info("Sayfa yenilenecek...")
+                        import time
+                        time.sleep(1)
+                        st.rerun()
+                
+                with col2:
+                    if st.button("🔄 Sayfayı Yenile", use_container_width=True):
+                        st.rerun()
+                
+                st.caption("⏱️ Cache süreleri: Analizler 1 saat, Takım verileri 24 saat")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🗑️ Cache Temizle", use_container_width=True, type="primary"):
-                    st.cache_data.clear()
-                    st.success("✅ Tüm önbellek temizlendi!")
-                    st.info("Sayfa yenilenecek...")
-                    import time
-                    time.sleep(1)
-                    st.rerun()
-            
-            with col2:
-                if st.button("🔄 Sayfayı Yenile", use_container_width=True):
-                    st.rerun()
-            
-            st.caption("⏱️ Cache süreleri: Analizler 1 saat, Takım verileri 24 saat")
-        
-        st.sidebar.markdown("---")
+            st.sidebar.markdown("---")
         
         # ============================================================================
         # YÖNETİCİ PANELİ
