@@ -213,11 +213,19 @@ def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league
 
 def calculate_weighted_stats(matches: List[Dict]) -> Dict:
     """
-    Son maçlardan ağırlıklı istatistikler hesaplar (gol + korner).
+    Son maçlardan ağırlıklı istatistikler hesaplar (gol + korner + kart).
     Yeni maçlara daha fazla ağırlık verir.
     """
-    home_stats = {'goals_for': [], 'goals_against': [], 'corners_for': [], 'corners_against': []}
-    away_stats = {'goals_for': [], 'goals_against': [], 'corners_for': [], 'corners_against': []}
+    home_stats = {
+        'goals_for': [], 'goals_against': [], 
+        'corners_for': [], 'corners_against': [],
+        'yellow_cards': [], 'red_cards': []
+    }
+    away_stats = {
+        'goals_for': [], 'goals_against': [], 
+        'corners_for': [], 'corners_against': [],
+        'yellow_cards': [], 'red_cards': []
+    }
     
     for match in matches:
         if match['location'] == 'home':
@@ -228,6 +236,11 @@ def calculate_weighted_stats(matches: List[Dict]) -> Dict:
                 home_stats['corners_for'].append(match['corners_for'])
             if match.get('corners_against') is not None:
                 home_stats['corners_against'].append(match['corners_against'])
+            # Kart verileri (varsa)
+            if match.get('yellow_cards') is not None:
+                home_stats['yellow_cards'].append(match['yellow_cards'])
+            if match.get('red_cards') is not None:
+                home_stats['red_cards'].append(match['red_cards'])
         else:
             away_stats['goals_for'].append(match['goals_for'])
             away_stats['goals_against'].append(match['goals_against'])
@@ -236,6 +249,11 @@ def calculate_weighted_stats(matches: List[Dict]) -> Dict:
                 away_stats['corners_for'].append(match['corners_for'])
             if match.get('corners_against') is not None:
                 away_stats['corners_against'].append(match['corners_against'])
+            # Kart verileri (varsa)
+            if match.get('yellow_cards') is not None:
+                away_stats['yellow_cards'].append(match['yellow_cards'])
+            if match.get('red_cards') is not None:
+                away_stats['red_cards'].append(match['red_cards'])
 
     def get_weighted_average(values: List[int]) -> float:
         """Ağırlıklı ortalama - yeni maçlara daha fazla ağırlık"""
@@ -253,13 +271,17 @@ def calculate_weighted_stats(matches: List[Dict]) -> Dict:
             'w_avg_goals_for': get_weighted_average(home_stats['goals_for']),
             'w_avg_goals_against': get_weighted_average(home_stats['goals_against']),
             'w_avg_corners_for': get_weighted_average(home_stats['corners_for']),
-            'w_avg_corners_against': get_weighted_average(home_stats['corners_against'])
+            'w_avg_corners_against': get_weighted_average(home_stats['corners_against']),
+            'w_avg_yellow_cards': get_weighted_average(home_stats['yellow_cards']),
+            'w_avg_red_cards': get_weighted_average(home_stats['red_cards'])
         },
         'away': {
             'w_avg_goals_for': get_weighted_average(away_stats['goals_for']),
             'w_avg_goals_against': get_weighted_average(away_stats['goals_against']),
             'w_avg_corners_for': get_weighted_average(away_stats['corners_for']),
-            'w_avg_corners_against': get_weighted_average(away_stats['corners_against'])
+            'w_avg_corners_against': get_weighted_average(away_stats['corners_against']),
+            'w_avg_yellow_cards': get_weighted_average(away_stats['yellow_cards']),
+            'w_avg_red_cards': get_weighted_average(away_stats['red_cards'])
         }
     }
 
@@ -1433,10 +1455,35 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     league_avg_corners = 10.5
     corner_probs = calculate_corner_probabilities(home_corners_avg, away_corners_avg, league_avg_corners)
     
-    # 🆕 KART TAHMİNLERİ
-    referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0) if referee_stats_processed else 4.0
-    referee_red_avg = referee_stats_processed.get('red_per_game', 0.15) if referee_stats_processed else 0.15
-    card_probs = calculate_card_probabilities(referee_yellow_avg, referee_red_avg)
+    # 🆕 KART TAHMİNLERİ - GERÇEK VERİLERLE
+    # 1. Takımların gerçek kart ortalamalarını al
+    home_yellow_avg = weighted_stats_a.get('home', {}).get('w_avg_yellow_cards', 0)
+    home_red_avg = weighted_stats_a.get('home', {}).get('w_avg_red_cards', 0)
+    away_yellow_avg = weighted_stats_b.get('away', {}).get('w_avg_yellow_cards', 0)
+    away_red_avg = weighted_stats_b.get('away', {}).get('w_avg_red_cards', 0)
+    
+    # 2. Hakem verisi varsa %70 hakem, %30 takım ağırlığı
+    if referee_stats_processed:
+        referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0)
+        referee_red_avg = referee_stats_processed.get('red_per_game', 0.15)
+    else:
+        referee_yellow_avg = 4.0
+        referee_red_avg = 0.15
+    
+    # 3. Eğer takım verileri varsa, hakem + takım ortalamasını al
+    if home_yellow_avg > 0 and away_yellow_avg > 0:
+        # Hakem %70, takımlar %30
+        team_yellow_avg = (home_yellow_avg + away_yellow_avg) / 2
+        final_yellow_avg = (referee_yellow_avg * 0.7) + (team_yellow_avg * 0.3)
+        
+        team_red_avg = (home_red_avg + away_red_avg) / 2
+        final_red_avg = (referee_red_avg * 0.7) + (team_red_avg * 0.3)
+    else:
+        # Sadece hakem verisi
+        final_yellow_avg = referee_yellow_avg
+        final_red_avg = referee_red_avg
+    
+    card_probs = calculate_card_probabilities(final_yellow_avg, final_red_avg)
     
     # 🆕 İLK YARI 1X2 TAHMİNLERİ
     first_half_probs = calculate_first_half_probabilities(score_a, score_b)

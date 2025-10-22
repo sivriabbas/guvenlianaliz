@@ -541,16 +541,23 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
             if score_for is None or score_against is None: 
                 continue
             
-            # Korner verileri (varsa)
+            # Korner ve kart verileri (varsa)
             corners_for = None
             corners_against = None
+            yellow_cards = None
+            red_cards = None
+            
             if 'statistics' in match and match['statistics']:
                 for stat in match['statistics']:
                     if stat['team']['id'] == team_id:
-                        # Takımın kornerleri
+                        # Takımın istatistikleri
                         for item in stat.get('statistics', []):
                             if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
                                 corners_for = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
+                            elif item.get('type') == 'Yellow Cards' and item.get('value') is not None:
+                                yellow_cards = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else 0
+                            elif item.get('type') == 'Red Cards' and item.get('value') is not None:
+                                red_cards = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else 0
                     else:
                         # Rakip takımın kornerleri
                         for item in stat.get('statistics', []):
@@ -562,7 +569,9 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
                 'goals_for': score_for,
                 'goals_against': score_against,
                 'corners_for': corners_for,
-                'corners_against': corners_against
+                'corners_against': corners_against,
+                'yellow_cards': yellow_cards,
+                'red_cards': red_cards
             })
         except (KeyError, TypeError):
             continue
