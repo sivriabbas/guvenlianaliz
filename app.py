@@ -1069,6 +1069,14 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
     try:
         id_a, name_a, id_b, name_b = fixture['home_id'], fixture['home_name'], fixture['away_id'], fixture['away_name']
         league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a)
+        
+        # Eğer takımdan lig bilgisi alınamazsa, fixture'daki lig bilgisini kullan
+        if not league_info and 'league_id' in fixture:
+            league_info = {
+                'league_id': fixture['league_id'],
+                'season': fixture.get('season', datetime.now().year if datetime.now().month > 6 else datetime.now().year - 1)
+            }
+        
         if not league_info: 
             st.warning(f"⚠️ {name_a} vs {name_b}: Lig bilgisi alınamadı")
             return None
@@ -1101,14 +1109,16 @@ def analyze_fixture_summary(fixture: Dict, model_params: Dict) -> Optional[Dict]
             "away_id": id_b, 
             "fixture_id": fixture['match_id'],
             "home_logo": fixture.get('home_logo', ''),
-            "away_logo": fixture.get('away_logo', '')
+            "away_logo": fixture.get('away_logo', ''),
+            "league_id": fixture.get('league_id'),
+            "season": fixture.get('season')
         }
     except Exception as e: 
         st.error(f"❌ {fixture.get('home_name', '?')} vs {fixture.get('away_name', '?')}: Hata - {str(e)}")
         return None
 
 @st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache - tekrar analiz engellensin
-def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, model_params: Dict):
+def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, model_params: Dict, league_id: int = None, season: int = None):
     id_a, name_a, id_b, name_b = team_a_data['id'], team_a_data['name'], team_b_data['id'], team_b_data['name']
     logo_a = team_a_data.get('logo', '')
     logo_b = team_b_data.get('logo', '')
@@ -1143,7 +1153,17 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     """, unsafe_allow_html=True)
     
     league_info = api_utils.get_team_league_info(API_KEY, BASE_URL, id_a)
-    if not league_info: st.error("Lig bilgisi alınamadı."); return
+    
+    # Eğer takımdan lig bilgisi alınamazsa, manuel olarak verilen lig bilgisini kullan
+    if not league_info and league_id:
+        if not season:
+            season = datetime.now().year if datetime.now().month > 6 else datetime.now().year - 1
+        league_info = {'league_id': league_id, 'season': season}
+    
+    if not league_info: 
+        st.error("Lig bilgisi alınamadı."); 
+        return
+    
     analysis = analysis_logic.run_core_analysis(API_KEY, BASE_URL, id_a, id_b, name_a, name_b, fixture_id, league_info, model_params, LIG_ORTALAMA_GOL)
     if not analysis: st.error("Analiz verisi oluşturulamadı."); return
 
@@ -1297,8 +1317,11 @@ def analyze_fixture_by_id(fixture_id: int, home_id: int, away_id: int, model_par
         </div>
         """, unsafe_allow_html=True)
         st.markdown("---")
-        # Eski detaylı analiz fonksiyonu
-        analyze_and_display(home_team, away_team, fixture_id, model_params)
+        # Eski detaylı analiz fonksiyonu - league_id bilgisini fixture'dan al
+        league_id_from_fixture = fixture_details.get('league', {}).get('id')
+        season_from_fixture = fixture_details.get('league', {}).get('season')
+        analyze_and_display(home_team, away_team, fixture_id, model_params, 
+                          league_id=league_id_from_fixture, season=season_from_fixture)
     except Exception as e:
         st.error(f"Analiz sırasında hata: {str(e)}")
 
@@ -1335,7 +1358,10 @@ def build_home_view(model_params):
                             away_team = next_fixture['teams']['away']
                             fixture_id = next_fixture['fixture']['id']
                             st.info(f"📅 Maç bulundu: {home_team['name']} vs {away_team['name']}")
-                            analyze_and_display(home_team, away_team, fixture_id, model_params)
+                            league_id_from_fixture = next_fixture.get('league', {}).get('id')
+                            season_from_fixture = next_fixture.get('league', {}).get('season')
+                            analyze_and_display(home_team, away_team, fixture_id, model_params,
+                                              league_id=league_id_from_fixture, season=season_from_fixture)
                         else:
                             st.warning(f"{team_data['name']} takımının programda görünen bir sonraki maçı bulunamadı.")
                 else:
@@ -1462,7 +1488,8 @@ def build_dashboard_view(model_params: Dict):
         team_a = {'id': row['home_id'], 'name': row['Ev Sahibi'], 'logo': row.get('home_logo', '')}
         team_b = {'id': row['away_id'], 'name': row['Deplasman'], 'logo': row.get('away_logo', '')}
         with st.spinner(f"**{team_a['name']} vs {team_b['name']}** analizi yapılıyor..."):
-            analyze_and_display(team_a, team_b, row['fixture_id'], model_params)
+            analyze_and_display(team_a, team_b, row['fixture_id'], model_params, 
+                              league_id=row.get('league_id'), season=row.get('season'))
 
 def build_manual_view(model_params: Dict):
     st.markdown("""
@@ -1504,7 +1531,9 @@ def build_manual_view(model_params: Dict):
                     match_dt = datetime.fromtimestamp(match['fixture']['timestamp']).strftime('%d.%m.%Y')
                     st.success(f"✅ Maç bulundu! Tarih: {match_dt}")
                     with st.spinner('Detaylı analiz yapılıyor...'):
-                        analyze_and_display(fixture_home, fixture_away, match['fixture']['id'], model_params)
+                        league_id_from_match = match.get('league', {}).get('id')
+                        analyze_and_display(fixture_home, fixture_away, match['fixture']['id'], model_params, 
+                                          league_id=league_id_from_match, season=info.get('season') if info else None)
                 else:
                     st.error("Bu iki takım arasında yaklaşan bir maç bulunamadı.")
             else:
@@ -1576,7 +1605,9 @@ def build_manual_view(model_params: Dict):
                             st.info("Not: Seçtiğiniz ev sahibi takım bu maçta deplasmanda yer alıyor.")
                         st.success(f"✅ Maç bulundu! Tarih: {match_dt}")
                         with st.spinner('Detaylı analiz yapılıyor...'):
-                            analyze_and_display(fixture_home, fixture_away, match['fixture']['id'], model_params)
+                            league_id_from_match = match.get('league', {}).get('id')
+                            analyze_and_display(fixture_home, fixture_away, match['fixture']['id'], model_params,
+                                              league_id=league_id_from_match, season=season)
                     else:
                         st.warning("Bu iki takımın planlanan maçı bulunamadı. Takım kodlarını kullanarak farklı kombinasyonları deneyebilirsiniz.")
 

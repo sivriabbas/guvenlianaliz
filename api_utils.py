@@ -772,7 +772,9 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
                         'away_name': f['teams']['away']['name'], 
                         'away_id': f['teams']['away']['id'],
                         'away_logo': f['teams']['away'].get('logo', ''),
-                        'league_name': f['league']['name']
+                        'league_name': f['league']['name'],
+                        'league_id': f['league']['id'],
+                        'season': season
                     }
                     # Biten maçlar için skor ekle
                     if fixture_status == 'FT' and f.get('score', {}).get('fulltime'):
