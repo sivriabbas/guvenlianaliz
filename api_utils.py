@@ -764,7 +764,16 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
     date_str = selected_date.strftime('%Y-%m-%d')
     season = selected_date.year if selected_date.month > 6 else selected_date.year - 1
     
-    for league_id in selected_league_ids:
+    # Rate limit önleme: Çok fazla lig seçilmişse istekler arasında gecikme ekle
+    import time
+    num_leagues = len(selected_league_ids)
+    delay_between_requests = 0.3 if num_leagues > 10 else 0.1 if num_leagues > 5 else 0
+    
+    for idx, league_id in enumerate(selected_league_ids):
+        # Rate limit önleme gecikmesi
+        if idx > 0 and delay_between_requests > 0:
+            time.sleep(delay_between_requests)
+        
         # Status filtresi kullanma - sadece tarih ve lig bazlı çek
         params = {'date': date_str, 'league': league_id, 'season': season}
         response, error = make_api_request(api_key, base_url, "fixtures", params, skip_limit=bypass_limit_check)

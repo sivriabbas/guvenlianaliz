@@ -1446,12 +1446,21 @@ def build_dashboard_view(model_params: Dict):
     if not selected_names: 
         st.warning("Lütfen analiz için yukarıdan en az bir lig seçin."); return
     
-    # LİG SAYISI SINIRI - API rate limit'i önlemek için
-    MAX_LEAGUES = 10
-    if len(selected_names) > MAX_LEAGUES:
-        st.error(f"⚠️ En fazla {MAX_LEAGUES} lig seçebilirsiniz. Şu anda {len(selected_names)} lig seçili.")
-        st.info("💡 Daha fazla lig analizi için ligleri gruplar halinde seçin.")
-        return
+    # LİG SAYISI SINIRI - Sadece ücretsiz kullanıcılar için
+    MAX_LEAGUES_FREE = 10
+    tier = st.session_state.get('tier', 'ücretsiz')
+    is_admin = st.session_state.get('username') in st.session_state.get('admin_users', [])
+    
+    # Ücretsiz kullanıcılar için limit kontrolü (Admin ve ücretli kullanıcılar sınırsız)
+    if tier == 'ücretsiz' and not is_admin:
+        if len(selected_names) > MAX_LEAGUES_FREE:
+            st.error(f"⚠️ Ücretsiz kullanıcılar en fazla {MAX_LEAGUES_FREE} lig seçebilir. Şu anda {len(selected_names)} lig seçili.")
+            st.info("💡 Daha fazla lig analizi için ücretli üyeliğe geçin veya ligleri gruplar halinde seçin.")
+            return
+    else:
+        # Admin ve ücretli kullanıcılar için bilgi mesajı
+        if len(selected_names) > 15:
+            st.info(f"ℹ️ {len(selected_names)} lig seçtiniz. Analiz biraz zaman alabilir...")
     
     selected_ids = []
     for label in selected_names:
