@@ -1458,9 +1458,17 @@ def build_dashboard_view(model_params: Dict):
             st.info("💡 Daha fazla lig analizi için ücretli üyeliğe geçin veya ligleri gruplar halinde seçin.")
             return
     else:
-        # Admin ve ücretli kullanıcılar için bilgi mesajı
-        if len(selected_names) > 15:
-            st.info(f"ℹ️ {len(selected_names)} lig seçtiniz. Analiz biraz zaman alabilir...")
+        # Admin ve ücretli kullanıcılar için bilgi ve öneri mesajları
+        if len(selected_names) > 25:
+            st.warning(f"⚠️ {len(selected_names)} lig seçtiniz! API rate limit'e takılma riski var.")
+            st.info("💡 **ÖNERİ**: En fazla 20-25 lig seçmeniz önerilir. Daha fazla lig için gruplar halinde analiz yapın.")
+            # Kullanıcıya devam etme seçeneği sun
+            if not st.button("⚡ Yine de Devam Et", type="primary"):
+                return
+        elif len(selected_names) > 15:
+            # Bekleme süresi tahmini
+            estimated_time = len(selected_names) * 1.2  # Saniye cinsinden
+            st.info(f"ℹ️ {len(selected_names)} lig seçtiniz. Analiz yaklaşık {estimated_time:.0f} saniye sürecek...")
     
     selected_ids = []
     for label in selected_names:
@@ -1472,11 +1480,30 @@ def build_dashboard_view(model_params: Dict):
         return
     
     # MAÇ PANOSUNDA ARAMA - SİSTEM API HAKKI KULLAN (bypass_limit_check=True)
-    with st.spinner(f"Maçlar getiriliyor..."):
+    loading_msg = f"{len(selected_ids)} ligden maçlar getiriliyor..."
+    with st.spinner(loading_msg):
         fixtures, error = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, selected_date, bypass_limit_check=True)
     
-    if error: st.error(f"Maçlar çekilirken bir hata oluştu:\n\n{error}"); return
-    if not fixtures: st.info(f"Seçtiğiniz tarih ve liglerde maç bulunamadı."); return
+    # Hata mesajını daha kullanıcı dostu göster
+    if error:
+        # Eğer başarılı sonuç varsa ve sadece rate limit uyarısıysa, warning olarak göster
+        if fixtures and ("✅" in error or "Rate Limit" in error):
+            st.warning(f"⚠️ Bazı ligler yüklenemedi:\n\n{error}")
+            st.info("💡 Yüklenen maçlarla devam ediliyor. Eksik ligler için daha sonra tekrar deneyin.")
+        else:
+            st.error(f"❌ Maçlar çekilirken hata oluştu:\n\n{error}")
+            if "rate limit" in error.lower() or "too many requests" in error.lower():
+                st.info("💡 **Çözüm Önerileri:**\n- Daha az lig seçin (maksimum 20-25)\n- Birkaç dakika bekleyip tekrar deneyin\n- Ligleri gruplar halinde analiz edin")
+            return
+    
+    if not fixtures: 
+        st.info(f"Seçtiğiniz tarih ve liglerde maç bulunamadı.")
+        return
+    
+    # Başarı mesajı
+    if len(fixtures) > 0:
+        st.success(f"✅ {len(fixtures)} maç bulundu, analiz ediliyor...")
+    
     progress_bar = st.progress(0, text="Maçlar analiz ediliyor...")
     # MAÇ PANOSUNDA ÖZET ANALİZ - SİSTEM API'Sİ KULLAN (use_system_api parametresi kaldırıldı, artık her zaman sistem API)
     analyzed_fixtures = [summary for i, f in enumerate(fixtures) if (summary := analyze_fixture_summary(f, model_params)) and (progress_bar.progress((i + 1) / len(fixtures), f"Analiz: {f['home_name']}", ))]

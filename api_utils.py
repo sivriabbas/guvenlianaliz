@@ -767,20 +767,48 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
     # Rate limit önleme: Çok fazla lig seçilmişse istekler arasında gecikme ekle
     import time
     num_leagues = len(selected_league_ids)
-    delay_between_requests = 0.3 if num_leagues > 10 else 0.1 if num_leagues > 5 else 0
+    
+    # Agresif gecikme stratejisi - API rate limit'ini aşmamak için
+    if num_leagues > 20:
+        delay_between_requests = 1.0  # 1 saniye (çok fazla lig için)
+    elif num_leagues > 15:
+        delay_between_requests = 0.7  # 0.7 saniye
+    elif num_leagues > 10:
+        delay_between_requests = 0.5  # 0.5 saniye
+    elif num_leagues > 5:
+        delay_between_requests = 0.2  # 0.2 saniye
+    else:
+        delay_between_requests = 0  # Gecikme yok
+    
+    successful_leagues = 0
+    rate_limit_hit = False
     
     for idx, league_id in enumerate(selected_league_ids):
         # Rate limit önleme gecikmesi
         if idx > 0 and delay_between_requests > 0:
             time.sleep(delay_between_requests)
         
+        # Eğer rate limit'e takıldıysak, daha uzun bekle
+        if rate_limit_hit:
+            time.sleep(2.0)  # 2 saniye bekle
+            rate_limit_hit = False
+        
         # Status filtresi kullanma - sadece tarih ve lig bazlı çek
         params = {'date': date_str, 'league': league_id, 'season': season}
         response, error = make_api_request(api_key, base_url, "fixtures", params, skip_limit=bypass_limit_check)
+        
         if error:
-            error_messages.append(f"Lig ID {league_id}: {error}")
+            # Rate limit hatası mı kontrol et
+            if 'rate limit' in error.lower() or 'too many requests' in error.lower():
+                error_messages.append(f"⚠️ API Rate Limit - Lig {league_id} atlandı")
+                rate_limit_hit = True
+                continue
+            else:
+                error_messages.append(f"Lig ID {league_id}: {error}")
             continue
+        
         if response:
+            successful_leagues += 1
             for f in response:
                 try:
                     fixture_status = f['fixture']['status']['short']
@@ -804,6 +832,15 @@ def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[
                     all_fixtures.append(fixture_data)
                 except (KeyError, TypeError): 
                     continue
+    
+    # Başarı bilgisi ekle
+    if successful_leagues > 0 and successful_leagues < num_leagues:
+        success_msg = f"✅ {successful_leagues}/{num_leagues} lig başarıyla yüklendi"
+        if error_messages:
+            error_messages.insert(0, success_msg)
+        else:
+            error_messages.append(success_msg)
+    
     final_error = "\n".join(error_messages) if error_messages else None
     return sorted(all_fixtures, key=lambda x: (x['league_name'], x['time'])), final_error
 
