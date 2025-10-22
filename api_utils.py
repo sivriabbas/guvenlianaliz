@@ -521,7 +521,8 @@ def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: in
     params = {'team': team_id, 'league': league_id, 'season': season}
     return make_api_request(api_key, base_url, "teams/statistics", params, skip_limit=skip_limit)
 
-@st.cache_data(ttl=3600)
+# GEÇICI: Cache kapatıldı - test için
+# @st.cache_data(ttl=3600)
 def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit: int = 10, skip_limit: bool = False) -> Optional[List[Dict]]:
     """
     Takımın son maçlarını çeker (gol, korner, kart verileri dahil).
