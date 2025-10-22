@@ -212,28 +212,55 @@ def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league
     }
 
 def calculate_weighted_stats(matches: List[Dict]) -> Dict:
-    home_stats = {'goals_for': [], 'goals_against': []}
-    away_stats = {'goals_for': [], 'goals_against': []}
+    """
+    Son maçlardan ağırlıklı istatistikler hesaplar (gol + korner).
+    Yeni maçlara daha fazla ağırlık verir.
+    """
+    home_stats = {'goals_for': [], 'goals_against': [], 'corners_for': [], 'corners_against': []}
+    away_stats = {'goals_for': [], 'goals_against': [], 'corners_for': [], 'corners_against': []}
+    
     for match in matches:
         if match['location'] == 'home':
             home_stats['goals_for'].append(match['goals_for'])
             home_stats['goals_against'].append(match['goals_against'])
+            # Korner verileri (varsa)
+            if match.get('corners_for') is not None:
+                home_stats['corners_for'].append(match['corners_for'])
+            if match.get('corners_against') is not None:
+                home_stats['corners_against'].append(match['corners_against'])
         else:
             away_stats['goals_for'].append(match['goals_for'])
             away_stats['goals_against'].append(match['goals_against'])
+            # Korner verileri (varsa)
+            if match.get('corners_for') is not None:
+                away_stats['corners_for'].append(match['corners_for'])
+            if match.get('corners_against') is not None:
+                away_stats['corners_against'].append(match['corners_against'])
 
     def get_weighted_average(values: List[int]) -> float:
-        if not values: return 0.0
+        """Ağırlıklı ortalama - yeni maçlara daha fazla ağırlık"""
+        if not values: 
+            return 0.0
         weighted_sum, total_weight = 0, 0
         for i, value in enumerate(values):
-            weight = i + 1
+            weight = i + 1  # En yeni maç en yüksek ağırlık
             weighted_sum += value * weight
             total_weight += weight
         return weighted_sum / total_weight if total_weight > 0 else 0.0
 
     return {
-        'home': {'w_avg_goals_for': get_weighted_average(home_stats['goals_for']), 'w_avg_goals_against': get_weighted_average(home_stats['goals_against'])},
-        'away': {'w_avg_goals_for': get_weighted_average(away_stats['goals_for']),'w_avg_goals_against': get_weighted_average(away_stats['goals_against'])}
+        'home': {
+            'w_avg_goals_for': get_weighted_average(home_stats['goals_for']),
+            'w_avg_goals_against': get_weighted_average(home_stats['goals_against']),
+            'w_avg_corners_for': get_weighted_average(home_stats['corners_for']),
+            'w_avg_corners_against': get_weighted_average(home_stats['corners_against'])
+        },
+        'away': {
+            'w_avg_goals_for': get_weighted_average(away_stats['goals_for']),
+            'w_avg_goals_against': get_weighted_average(away_stats['goals_against']),
+            'w_avg_corners_for': get_weighted_average(away_stats['corners_for']),
+            'w_avg_corners_against': get_weighted_average(away_stats['corners_against'])
+        }
     }
 
 def calculate_form_factor(matches: Optional[List[Dict]], preferred_location: Optional[str] = None) -> float:
@@ -1380,16 +1407,27 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
 
     pace_index = (home_att + away_att) / max(0.2, avg_home_goals + avg_away_goals)
     
-    # 🆕 KORNER TAHMİNLERİ
-    # Takımların korner istatistiklerini al (varsa)
-    home_corners_avg = 5.0  # Varsayılan
-    away_corners_avg = 5.0  # Varsayılan
+    # 🆕 KORNER TAHMİNLERİ - GERÇEK VERİLERLE
+    # 1. Önce gerçek korner verilerini al (son maçlardan)
+    home_corners_for = weighted_stats_a.get('home', {}).get('w_avg_corners_for', 0)
+    home_corners_against = weighted_stats_a.get('home', {}).get('w_avg_corners_against', 0)
+    away_corners_for = weighted_stats_b.get('away', {}).get('w_avg_corners_for', 0)
+    away_corners_against = weighted_stats_b.get('away', {}).get('w_avg_corners_against', 0)
     
-    # Basit hesaplama: Hücum gücü yüksek takımlar daha fazla korner kazanır
-    home_corners_avg = 4.0 + (home_attack_idx * 2.5)
-    away_corners_avg = 4.0 + (away_attack_idx * 2.5)
+    # 2. Eğer gerçek veri varsa kullan
+    if home_corners_for > 0 and away_corners_for > 0:
+        # Gerçek verilerden ortalama hesapla
+        home_corners_avg = home_corners_for  # Ev sahibinin kazandığı kornerler
+        away_corners_avg = away_corners_for  # Deplasmanın kazandığı kornerler
+    else:
+        # Gerçek veri yoksa tahmini hesaplama
+        # Hücum gücü + savunma zayıflığı kombinasyonu
+        home_corners_avg = 4.0 + (home_attack_idx * 2.5) + (away_def_idx * 1.5)
+        away_corners_avg = 4.0 + (away_attack_idx * 2.5) + (home_def_idx * 1.5)
     
-    corner_probs = calculate_corner_probabilities(home_corners_avg, away_corners_avg)
+    # 3. Lig ortalamasına göre normalize et (10-11 korner normal)
+    league_avg_corners = 10.5
+    corner_probs = calculate_corner_probabilities(home_corners_avg, away_corners_avg, league_avg_corners)
     
     # 🆕 KART TAHMİNLERİ
     referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0) if referee_stats_processed else 4.0

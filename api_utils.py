@@ -523,6 +523,10 @@ def get_team_statistics(api_key: str, base_url: str, team_id: int, league_id: in
 
 @st.cache_data(ttl=3600)
 def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit: int = 10, skip_limit: bool = False) -> Optional[List[Dict]]:
+    """
+    Takımın son maçlarını çeker (gol, korner, kart verileri dahil).
+    Korner ve kart verileri varsa ekler, yoksa None bırakır.
+    """
     params = {'team': team_id, 'last': limit, 'status': 'FT'}
     matches, error = make_api_request(api_key, base_url, "fixtures", params, skip_limit=skip_limit)
     if error or not matches:
@@ -534,8 +538,32 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
             is_home = match['teams']['home']['id'] == team_id
             score_for = match['score']['fulltime']['home' if is_home else 'away']
             score_against = match['score']['fulltime']['away' if is_home else 'home']
-            if score_for is None or score_against is None: continue
-            stats_list.append({'location': 'home' if is_home else 'away', 'goals_for': score_for, 'goals_against': score_against})
+            if score_for is None or score_against is None: 
+                continue
+            
+            # Korner verileri (varsa)
+            corners_for = None
+            corners_against = None
+            if 'statistics' in match and match['statistics']:
+                for stat in match['statistics']:
+                    if stat['team']['id'] == team_id:
+                        # Takımın kornerleri
+                        for item in stat.get('statistics', []):
+                            if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
+                                corners_for = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
+                    else:
+                        # Rakip takımın kornerleri
+                        for item in stat.get('statistics', []):
+                            if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
+                                corners_against = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
+            
+            stats_list.append({
+                'location': 'home' if is_home else 'away',
+                'goals_for': score_for,
+                'goals_against': score_against,
+                'corners_for': corners_for,
+                'corners_against': corners_against
+            })
         except (KeyError, TypeError):
             continue
     return stats_list
