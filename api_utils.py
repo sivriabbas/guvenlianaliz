@@ -549,10 +549,16 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
             red_cards = None
             
             if 'statistics' in match and match['statistics']:
+                # DEBUG: Statistics yapısını kontrol et
+                print(f"\n📋 Statistics bulundu, {len(match['statistics'])} takım var")
+                
                 for stat in match['statistics']:
                     if stat['team']['id'] == team_id:
                         # Takımın istatistikleri
+                        print(f"  Takım {team_id} istatistikleri:")
                         for item in stat.get('statistics', []):
+                            print(f"    - {item.get('type')}: {item.get('value')}")
+                            
                             if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
                                 corners_for = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
                             elif item.get('type') == 'Yellow Cards' and item.get('value') is not None:
@@ -564,6 +570,8 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
                         for item in stat.get('statistics', []):
                             if item.get('type') == 'Corner Kicks' and item.get('value') is not None:
                                 corners_against = int(item['value']) if isinstance(item['value'], (int, str)) and str(item['value']).isdigit() else None
+            else:
+                print(f"\n⚠️ Statistics bulunamadı bu maç için!")
             
             stats_list.append({
                 'location': 'home' if is_home else 'away',

@@ -859,6 +859,18 @@ def display_detailed_betting_tab(analysis: Dict, team_names: Dict, fixture_id: i
     
     # Seksiyon 3: Korner Tahminleri
     st.markdown("### ⛳ Korner Tahminleri")
+    
+    # 🔍 DEBUG BİLGİSİ - GEÇİCİ
+    with st.expander("🔍 DEBUG - Korner Veri Kontrolü", expanded=False):
+        st.write("**API'den gelen ham veri:**")
+        st.json({
+            "home_corners_for": analysis.get('debug_home_corners_for', 'VERİ YOK'),
+            "home_corners_against": analysis.get('debug_home_corners_against', 'VERİ YOK'),
+            "away_corners_for": analysis.get('debug_away_corners_for', 'VERİ YOK'),
+            "away_corners_against": analysis.get('debug_away_corners_against', 'VERİ YOK'),
+            "hesaplanan_toplam": corner_probs.get('expected_corners', 'VERİ YOK')
+        })
+    
     st.info(f"📊 Beklenen Toplam Korner: **{corner_probs.get('expected_corners', 10.0):.1f}**")
     
     corner_data = []

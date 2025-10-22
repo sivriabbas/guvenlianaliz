@@ -1524,6 +1524,13 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
         'first_half_probs': first_half_probs,
         'confidence': confidence,
         'diff': diff,
+        # 🔍 DEBUG BİLGİLERİ
+        'debug_home_corners_for': home_corners_for,
+        'debug_home_corners_against': home_corners_against,
+        'debug_away_corners_for': away_corners_for,
+        'debug_away_corners_against': away_corners_against,
+        'debug_home_yellow': home_yellow_avg,
+        'debug_away_yellow': away_yellow_avg,
         'params': {
             'avg_goals': avg_goals,
             'avg_home_goals': avg_home_goals,
