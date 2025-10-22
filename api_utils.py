@@ -41,7 +41,12 @@ def get_api_limit_for_user(tier: str) -> int:
     return TIER_LIMITS.get(tier, TIER_LIMITS['ücretsiz'])
 
 def get_current_usage(username: str) -> Dict[str, Any]:
-    """Kullanıcının mevcut API kullanım verisini dosyadan okur. CACHE YOK - Her zaman güncel veri."""
+    """
+    Kullanıcının mevcut API kullanım verisini dosyadan okur. CACHE YOK - Her zaman güncel veri.
+    
+    ÖNEMLİ: Aylık sayaç ASLA otomatik sıfırlanmaz - sadece admin manuel olarak sıfırlayabilir.
+    Günlük sayaç her gün otomatik sıfırlanır (tarih değiştiğinde).
+    """
     today_str = str(date.today())
     month_str = date.today().strftime('%Y-%m')
     if not os.path.exists(USAGE_FILE):
@@ -55,19 +60,21 @@ def get_current_usage(username: str) -> Dict[str, Any]:
 
     user_data = usage_data.get(username, {})
 
-    # Tarih değişti mi kontrol et (gece 00:00'da reset)
+    # Tarih değişti mi kontrol et (gece 00:00'da günlük sayacı reset)
     if user_data.get('date') != today_str:
-        # Günlük sayacı sıfırla ve dosyaya yaz
+        # SADECE günlük sayacı sıfırla - aylık sayacı KORUMA
         user_data['date'] = today_str
         user_data['count'] = 0
+        # monthly_count korunur - değişmez
         usage_data[username] = user_data
         _write_usage_file(usage_data)
 
-    # Ay değişti mi kontrol et
+    # Ay bilgisini güncelle ama aylık sayacı SIFIRLAMAYI KALDIR
     if user_data.get('month') != month_str:
-        # Aylık sayacı sıfırla
+        # Sadece ay bilgisini güncelle, monthly_count'u KORUMA
         user_data['month'] = month_str
-        user_data['monthly_count'] = 0
+        # AYLUK SAYAÇ KORUNUR - ASLA OTOMATİK SIFIRLANMAZ
+        # Admin manuel olarak sıfırlamalı
         usage_data[username] = user_data
         _write_usage_file(usage_data)
 

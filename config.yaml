@@ -1,5 +1,6 @@
 admin_users:
 - sivrii1940
+- rform
 cookie:
   expiry_days: 365
   key: random_signature_key_burayi_degistir
@@ -24,8 +25,8 @@ credentials:
     rform:
       email: rform@gmail.com
       name: Rebecca Form
-      password: $2b$12$G.SpgKYAvaCQ8AiXw9OxvuyFXgKTk0Ftq6c2Dxg5A8wDIp6rqxv4m
-      tier: ücretsiz
+      password: $2b$12$yuRf9bsltqyuopW1dtQFMeidfX4zm4oAeNx.JoLe4Ay.R22X9Mpiu
+      tier: ücretli
     sivrii1:
       email: sivrii1940@gmail.com
       name: mustafa yılmaz

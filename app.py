@@ -1445,6 +1445,14 @@ def build_dashboard_view(model_params: Dict):
     st.markdown("---")
     if not selected_names: 
         st.warning("Lütfen analiz için yukarıdan en az bir lig seçin."); return
+    
+    # LİG SAYISI SINIRI - API rate limit'i önlemek için
+    MAX_LEAGUES = 10
+    if len(selected_names) > MAX_LEAGUES:
+        st.error(f"⚠️ En fazla {MAX_LEAGUES} lig seçebilirsiniz. Şu anda {len(selected_names)} lig seçili.")
+        st.info("💡 Daha fazla lig analizi için ligleri gruplar halinde seçin.")
+        return
+    
     selected_ids = []
     for label in selected_names:
         league_id = get_league_id_from_display(label)
@@ -1897,26 +1905,26 @@ def main():
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
         
-        # Üst boşluk
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Logo ve Başlık - Daha büyük ve etkileyici
+        # LOGO EN ÜSTTE - Daha büyük ve etkileyici
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             display_logo(sidebar=False, size="large")
             st.markdown("""
-            <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%, #f093fb 100%); 
-                       -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
-                       background-clip: text; font-size: 3.5em; margin: 0; font-weight: 800;'>
-                ⚽ Futbol Analiz AI
+            <h1 style='text-align: center; color: #667eea; margin-top: -10px; font-size: 2.8em;'>
+                ⚽ Güvenilir Futbol Analizi
             </h1>
-            <p style='text-align: center; font-size: 1.3em; color: #667eea; margin: 15px 0; font-weight: 600;'>
-                Yapay Zeka Destekli Maç Tahmin Platformu
-            </p>
-            <p style='text-align: center; font-size: 1em; color: #999; margin: 10px 0 30px 0;'>
-                🎯 Profesyonel Analiz | 📊 Gerçek Zamanlı Veriler | 🤖 Akıllı Tahminler
+            <p style='text-align: center; color: #888; font-size: 1.2em; margin-bottom: 30px;'>
+                Yapay Zeka Destekli Profesyonel Maç Tahminleri
             </p>
             """, unsafe_allow_html=True)
+        
+        # Login formu için giriş yapılmamış durumu kontrol et
+        if st.session_state.get('authentication_status') is None:
+            # İlk açılış - hoş geldiniz mesajı
+            pass
+        
+        # Giriş Formu Alanı
+        st.markdown("<br>", unsafe_allow_html=True)
         
         # Şifre/Kullanıcı Adı Unuttum Bölümü
         st.markdown("---")
@@ -2425,6 +2433,29 @@ def main():
                                 if st.button('Aylık Limiti Uygula', key=f"apply_monthly_{selected_user}"):
                                     api_utils.set_user_monthly_limit(selected_user, int(monthly_limit))
                                     st.success(f'Aylık limit güncellendi: {monthly_limit}')
+                            
+                            st.markdown("---")
+                            st.markdown("**🔄 Sayaç Sıfırlama**")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button('🗑️ Günlük Sayacı Sıfırla', key=f"reset_daily_{selected_user}", type="secondary"):
+                                    api_utils.reset_daily_usage(selected_user)
+                                    st.success(f'✅ {selected_user} kullanıcısının günlük sayacı sıfırlandı!')
+                                    st.rerun()
+                            with col2:
+                                if st.button('🗑️ Aylık Sayacı Sıfırla', key=f"reset_monthly_{selected_user}", type="secondary"):
+                                    # Aylık sayacı sıfırlama fonksiyonu
+                                    try:
+                                        data = api_utils._read_usage_file()
+                                        if selected_user in data:
+                                            data[selected_user]['monthly_count'] = 0
+                                            api_utils._write_usage_file(data)
+                                            st.success(f'✅ {selected_user} kullanıcısının aylık sayacı sıfırlandı!')
+                                            st.rerun()
+                                        else:
+                                            st.error('Kullanıcı bulunamadı!')
+                                    except Exception as e:
+                                        st.error(f'Hata: {str(e)}')
                         
                         # Kullanıcı Silme
                         with st.expander("🗑️ Kullanıcıyı Sil", expanded=False):
