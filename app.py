@@ -1454,17 +1454,24 @@ def main():
                         # Bu IP ilk kez kullanılıyor - kaydet
                         api_utils._set_ip_assignment(client_ip, username)
                     elif assigned_user != username:
-                        # Bu IP başka bir kullanıcıya ait!
-                        st.error(f"⛔ **IP KISITLAMASI:** Bu IP adresi zaten '{assigned_user}' kullanıcısına tanımlı. Aynı IP'den birden fazla hesap kullanılamaz.")
-                        st.warning("Lütfen çıkış yapın ve kendi IP adresinizden giriş yapın.")
-                        if st.button("🚪 Çıkış Yap", key="ip_restriction_logout"):
-                            authenticator.logout()
-                            # Session state temizle
-                            for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
-                                if key in st.session_state:
-                                    del st.session_state[key]
-                            st.rerun()
-                        st.stop()
+                        # Bu IP başka bir kullanıcıya ait! AMA önce kontrol et:
+                        # Eğer assigned_user config.yaml'de yoksa (silinmişse), IP'yi mevcut kullanıcıya transfer et
+                        if assigned_user not in config['credentials']['usernames']:
+                            # Eski hesap silinmiş, IP'yi yeni hesaba transfer et
+                            api_utils._set_ip_assignment(client_ip, username)
+                            st.success(f"✅ **IP Transferi Tamamlandı:** '{assigned_user}' hesabı bulunamadı, IP hakkı '{username}' hesabına otomatik transfer edildi.")
+                        else:
+                            # Başka aktif bir kullanıcıya ait, engelle
+                            st.error(f"⛔ **IP KISITLAMASI:** Bu IP adresi zaten '{assigned_user}' kullanıcısına tanımlı. Aynı IP'den birden fazla hesap kullanılamaz.")
+                            st.warning("Lütfen çıkış yapın ve kendi IP adresinizden giriş yapın.")
+                            if st.button("🚪 Çıkış Yap", key="ip_restriction_logout"):
+                                authenticator.logout()
+                                # Session state temizle
+                                for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
+                                    if key in st.session_state:
+                                        del st.session_state[key]
+                                st.rerun()
+                            st.stop()
             except Exception as e:
                 # IP kontrolünde hata olursa uygulamayı durdurma
                 print(f"IP kontrol hatası: {e}")
