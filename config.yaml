@@ -2,9 +2,9 @@ admin_users:
 - sivrii1940
 - admin
 cookie:
-  expiry_days: 90  # 90 gün boyunca login kalacak
+  expiry_days: 365  # 1 yıl boyunca login kalacak (daha uzun süre)
   key: random_signature_key_burayi_degistir
-  name: random_cookie_name_burayi_degistir
+  name: futbol_analiz_auth_cookie
 credentials:
   usernames:
     ci_test_user:
@@ -56,6 +56,11 @@ credentials:
       email: sivrii1940@gmail.com
       name: mustafa yılmaz
       password: $2b$12$ZfBAXlwYh5QMV386BiCs4uDaw0vm/2oGxL9mndmuKAijCxAYm5jXO
+      tier: ücretsiz
+    sivrii79:
+      email: sivri1940@gmail.com
+      name: merve yılmaz
+      password: $2b$12$t.GLOch6ppaVrk3Uei7mC.eRIqHn2FXy4jQ4QMhWjqsXaJGlD.BVC
       tier: ücretsiz
     sivrii8:
       email: sivri1940@gmail.com

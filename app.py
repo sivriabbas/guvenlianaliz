@@ -1416,12 +1416,23 @@ def main():
     # Admin listesini session_state'e kaydet (API kontrolü için gerekli)
     st.session_state['admin_users'] = admin_users
     
-    # F5/geri tuşunda çıkış olmaması için authenticated durumu koru
-    if st.session_state.get('authentication_status') is None and 'username' in st.session_state and st.session_state.get('username'):
-        st.session_state['authentication_status'] = True
+    # KALICI OTURUM YÖNETİMİ - Cookie kontrolü
+    try:
+        # Authenticator'ın login fonksiyonunu çağırmadan önce cookie kontrol et
+        name, authentication_status, username = authenticator.login(location='main', fields={'Form name': 'Giriş Yap'})
+        
+        # Başarılı giriş sonrası session state'e kaydet
+        if authentication_status:
+            st.session_state['authentication_status'] = True
+            st.session_state['username'] = username
+            st.session_state['name'] = name
+    except Exception as e:
+        # Cookie mekanizması başarısız olursa session_state'den oku
+        if 'authentication_status' not in st.session_state:
+            st.session_state['authentication_status'] = None
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
-        authenticator.login()
+        # Login formu zaten authenticator.login() tarafından gösterildi
         
         # Şifre/Kullanıcı Adı Unuttum Bölümü
         st.markdown("---")
