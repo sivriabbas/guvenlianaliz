@@ -158,7 +158,7 @@ def get_dynamic_league_average(api_key: str, base_url: str, league_info: Dict, d
 @st.cache_data(ttl=86400)
 def calculate_general_stats_v2(api_key: str, base_url: str, team_id: int, league_id: int, season: int, skip_api_limit: bool = False) -> Dict:
     """Genel istatistikleri ve takıma özel ev sahibi avantajını hesaplar."""
-    stats_data, error = api_utils.get_team_statistics(api_key, base_url, team_id, league_id, season, skip_api_limit)
+    stats_data, error = api_utils.get_team_statistics(api_key, base_url, team_id, league_id, season, skip_limit=skip_api_limit)
     if error or not stats_data:
         # Varsayılan değerler döndür - sistem yine de çalışabilsin
         return {
@@ -1048,8 +1048,8 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     home_advantage = team_home_adv * max(0.96, min(1.12, league_bias)) * quality_adjust
     home_advantage = max(1.02, min(1.20, home_advantage))
 
-    last_matches_a = api_utils.get_team_last_matches_stats(api_key, base_url, id_a, skip_api_limit)
-    last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b, skip_api_limit)
+    last_matches_a = api_utils.get_team_last_matches_stats(api_key, base_url, id_a, limit=10, skip_limit=skip_api_limit)
+    last_matches_b = api_utils.get_team_last_matches_stats(api_key, base_url, id_b, limit=10, skip_limit=skip_api_limit)
     weighted_stats_a = calculate_weighted_stats(last_matches_a) if last_matches_a else {}
     weighted_stats_b = calculate_weighted_stats(last_matches_b) if last_matches_b else {}
     
