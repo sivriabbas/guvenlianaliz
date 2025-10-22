@@ -57,6 +57,45 @@ from yaml.loader import SafeLoader
 import api_utils
 import analysis_logic
 from password_manager import change_password, change_email
+import base64
+import os
+
+
+def get_logo_base64():
+    """Logo dosyasını base64 formatına çevirir"""
+    logo_path = os.path.join(os.path.dirname(__file__), 'assets', 'logo.svg')
+    try:
+        with open(logo_path, 'r', encoding='utf-8') as f:
+            svg_content = f.read()
+        return base64.b64encode(svg_content.encode()).decode()
+    except Exception as e:
+        print(f"Logo yüklenemedi: {e}")
+        return None
+
+
+def display_logo(sidebar=False, size="medium"):
+    """Logoyu gösterir
+    Args:
+        sidebar: Sidebar'da mı gösterilecek
+        size: Logo boyutu - small (50px), medium (100px), large (150px)
+    """
+    logo_base64 = get_logo_base64()
+    if not logo_base64:
+        return
+    
+    sizes = {"small": 50, "medium": 100, "large": 150}
+    width = sizes.get(size, 100)
+    
+    logo_html = f"""
+    <div style='text-align: center; margin: 20px 0;'>
+        <img src='data:image/svg+xml;base64,{logo_base64}' width='{width}' style='border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'>
+    </div>
+    """
+    
+    if sidebar:
+        st.sidebar.markdown(logo_html, unsafe_allow_html=True)
+    else:
+        st.markdown(logo_html, unsafe_allow_html=True)
 
 
 def safe_rerun():
@@ -74,7 +113,15 @@ def safe_rerun():
         st.stop()
 
 # --- KONFİGÜRASYON ---
-st.set_page_config(layout="wide", page_title="Futbol Analiz Motoru")
+st.set_page_config(
+    layout="wide", 
+    page_title="⚽ Futbol Analiz AI",
+    page_icon="⚽",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'About': "# Futbol Analiz AI\n### Yapay Zeka Destekli Maç Tahmin Platformu"
+    }
+)
 try:
     API_KEY = st.secrets["API_KEY"]
 except (FileNotFoundError, KeyError):
@@ -1254,10 +1301,21 @@ def analyze_fixture_by_id(fixture_id: int, home_id: int, away_id: int, model_par
         st.error(f"Analiz sırasında hata: {str(e)}")
 
 def build_home_view(model_params):
-    st.title("🏠 Ana Sayfa")
+    # Ana başlık ile logo
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("""
+        <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+                   background-clip: text; font-size: 2.5em; margin: 10px 0;'>
+            🏠 Ana Sayfa
+        </h1>
+        """, unsafe_allow_html=True)
+    
     if LEAGUE_LOAD_ERROR:
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
     
+    st.markdown("---")
     st.subheader("🔍 Hızlı Takım Araması")
     team_query = st.text_input("Bir sonraki maçını bulmak için takım adı girin:", placeholder="Örn: Galatasaray")
     if st.button("Takımı Ara", use_container_width=True):
@@ -1284,9 +1342,18 @@ def build_home_view(model_params):
             st.warning("Lütfen bir takım adı girin.")
 
 def build_dashboard_view(model_params: Dict):
-    st.title("🗓️ Maç Panosu")
+    st.markdown("""
+    <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+               -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+               background-clip: text; font-size: 2.5em; margin: 10px 0;'>
+        🗓️ Maç Panosu
+    </h1>
+    """, unsafe_allow_html=True)
+    
     if LEAGUE_LOAD_ERROR:
         st.caption(f"⚠️ Lig listesi uyarısı: {LEAGUE_LOAD_ERROR}")
+    
+    st.markdown("---")
     col1, col2 = st.columns([1, 3])
     with col1:
         # Session state ile tarih seçimini koru
@@ -1396,10 +1463,18 @@ def build_dashboard_view(model_params: Dict):
             analyze_and_display(team_a, team_b, row['fixture_id'], model_params)
 
 def build_manual_view(model_params: Dict):
-    st.title("🔩 Manuel Takım Analizi")
+    st.markdown("""
+    <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+               -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+               background-clip: text; font-size: 2.5em; margin: 10px 0;'>
+        🔩 Manuel Takım Analizi
+    </h1>
+    """, unsafe_allow_html=True)
+    
     if LEAGUE_LOAD_ERROR:
         st.warning(f"Lig listesi yüklenirken uyarı: {LEAGUE_LOAD_ERROR}")
 
+    st.markdown("---")
     st.subheader("ID veya Ad ile Hızlı Analiz")
     c1, c2 = st.columns(2)
     t1_in = c1.text_input("Ev Sahibi Takım (Ad/ID)")
@@ -1754,6 +1829,19 @@ def main():
 
     if st.session_state.get('authentication_status') is not True and not st.session_state.get('bypass_login'):
         
+        # Logo ve Başlık
+        display_logo(sidebar=False, size="large")
+        st.markdown("""
+        <h1 style='text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+                   background-clip: text; font-size: 3em; margin: 20px 0;'>
+            ⚽ Futbol Analiz AI
+        </h1>
+        <p style='text-align: center; font-size: 1.2em; color: #666; margin-bottom: 40px;'>
+            Yapay Zeka Destekli Maç Tahmin Platformu
+        </p>
+        """, unsafe_allow_html=True)
+        
         # Şifre/Kullanıcı Adı Unuttum Bölümü
         st.markdown("---")
         with st.expander("🔑 Şifre veya Kullanıcı Adı mı Unuttunuz?"):
@@ -1924,6 +2012,9 @@ def main():
         # ============================================================================
         # PROFESYONEL SİDEBAR YAPISI
         # ============================================================================
+        
+        # Logo
+        display_logo(sidebar=True, size="small")
         
         # Hoşgeldin Başlığı
         st.sidebar.markdown(f"""
