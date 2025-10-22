@@ -1282,70 +1282,6 @@ def build_home_view(model_params):
                     st.error(f"'{team_query}' adında bir takım bulunamadı.")
         else:
             st.warning("Lütfen bir takım adı girin.")
-            
-    st.markdown("---")
-    
-    st.subheader("⭐ Favori Liglerinizdeki Yaklaşan Maçlar")
-    
-    # Kullanıcının kaydedilmiş favori liglerini yükle
-    username = st.session_state.get('username')
-    favorite_leagues = st.session_state.get('favorite_leagues')
-    
-    # Session'da yoksa config'den yükle
-    if favorite_leagues is None and username:
-        favorite_leagues = load_user_favorite_leagues(username)
-        if favorite_leagues:
-            st.session_state.favorite_leagues = favorite_leagues
-    
-    # Hala yoksa varsayılan ligleri kullan
-    if favorite_leagues is None:
-        favorite_leagues = get_default_favorite_leagues()
-        st.session_state.favorite_leagues = favorite_leagues
-
-    normalized_favorites = normalize_league_labels(favorite_leagues)
-    st.session_state.favorite_leagues = normalized_favorites
-    if not normalized_favorites:
-        st.info("Favori lig listeniz boş. Kenar çubuğundaki '⭐ Favori Ligleri Yönet' bölümünden ilgilendiğiniz ligleri ekleyebilirsiniz.")
-        return
-
-    selected_ids = []
-    for label in normalized_favorites:
-        league_id = get_league_id_from_display(label)
-        if league_id and league_id not in selected_ids:
-            selected_ids.append(league_id)
-
-    if not selected_ids:
-        st.warning("Favori ligleriniz güncel katalogla eşleşmiyor. Lütfen listanızı güncelleyin.")
-        return
-
-    today = date.today()
-    tomorrow = today + timedelta(days=1)
-
-    st.write(f"**Bugünün Maçları ({today.strftime('%d %B %Y')})**")
-    with st.spinner("Bugünün favori maçları getiriliyor..."):
-        # KULLANICI LİMİTİNİ TÜKETME - Ana sayfa için ücretsiz
-        fixtures_today, error_today = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today, bypass_limit_check=True)
-
-    if error_today:
-        st.error(f"Bugünün maçları getirilirken hata oluştu: {error_today}")
-    elif not fixtures_today:
-        st.write("Bugün favori liglerinizde maç bulunmuyor.")
-    else:
-        for fix in fixtures_today:
-            st.markdown(f"- `{fix['time']}` | {fix['league_name']} | **{fix['home_name']} vs {fix['away_name']}**")
-
-    st.write(f"**Yarının Maçları ({tomorrow.strftime('%d %B %Y')})**")
-    with st.spinner("Yarının favori maçları getiriliyor..."):
-        # KULLANICI LİMİTİNİ TÜKETME - Ana sayfa için ücretsiz
-        fixtures_tomorrow, error_tomorrow = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, tomorrow, bypass_limit_check=True)
-
-    if error_tomorrow:
-        st.error(f"Yarının maçları getirilirken hata oluştu: {error_tomorrow}")
-    elif not fixtures_tomorrow:
-        st.write("Yarın favori liglerinizde maç bulunmuyor.")
-    else:
-        for fix in fixtures_tomorrow:
-            st.markdown(f"- `{fix['time']}` | {fix['league_name']} | **{fix['home_name']} vs {fix['away_name']}**")
 
 def build_dashboard_view(model_params: Dict):
     st.title("🗓️ Maç Panosu")
@@ -1566,6 +1502,76 @@ def build_manual_view(model_params: Dict):
                             analyze_and_display(fixture_home, fixture_away, match['fixture']['id'], model_params)
                     else:
                         st.warning("Bu iki takımın planlanan maçı bulunamadı. Takım kodlarını kullanarak farklı kombinasyonları deneyebilirsiniz.")
+
+    st.markdown("---")
+    st.subheader("⭐ Favori Liglerinizdeki Yaklaşan Maçlar")
+    
+    # Kullanıcının kaydedilmiş favori liglerini yükle
+    username = st.session_state.get('username')
+    favorite_leagues = st.session_state.get('favorite_leagues')
+    
+    # Session'da yoksa config'den yükle
+    if favorite_leagues is None and username:
+        favorite_leagues = load_user_favorite_leagues(username)
+        if favorite_leagues:
+            st.session_state.favorite_leagues = favorite_leagues
+    
+    # Hala yoksa varsayılan ligleri kullan
+    if favorite_leagues is None:
+        favorite_leagues = get_default_favorite_leagues()
+        st.session_state.favorite_leagues = favorite_leagues
+
+    normalized_favorites = normalize_league_labels(favorite_leagues)
+    st.session_state.favorite_leagues = normalized_favorites
+    
+    if not normalized_favorites:
+        st.info("Favori lig listeniz boş. Kenar çubuğundaki '⭐ Favori Ligleri Yönet' bölümünden ilgilendiğiniz ligleri ekleyebilirsiniz.")
+    else:
+        selected_ids = []
+        for label in normalized_favorites:
+            league_id = get_league_id_from_display(label)
+            if league_id and league_id not in selected_ids:
+                selected_ids.append(league_id)
+
+        if not selected_ids:
+            st.warning("Favori ligleriniz güncel katalogla eşleşmiyor. Lütfen listanızı güncelleyin.")
+        else:
+            today = date.today()
+            tomorrow = today + timedelta(days=1)
+
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown(f"**📅 Bugün ({today.strftime('%d %B %Y')})**")
+                with st.spinner("Bugünün favori maçları getiriliyor..."):
+                    # KULLANICI LİMİTİNİ TÜKETME - Ana sayfa için ücretsiz
+                    fixtures_today, error_today = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, today, bypass_limit_check=True)
+
+                if error_today:
+                    st.error(f"Hata: {error_today}")
+                elif not fixtures_today:
+                    st.info("Bugün maç yok.")
+                else:
+                    for fix in fixtures_today:
+                        st.markdown(f"🕐 `{fix['time']}` | {fix['league_name']}")
+                        st.markdown(f"⚽ **{fix['home_name']} vs {fix['away_name']}**")
+                        st.markdown("---")
+
+            with col2:
+                st.markdown(f"**📅 Yarın ({tomorrow.strftime('%d %B %Y')})**")
+                with st.spinner("Yarının favori maçları getiriliyor..."):
+                    # KULLANICI LİMİTİNİ TÜKETME - Ana sayfa için ücretsiz
+                    fixtures_tomorrow, error_tomorrow = api_utils.get_fixtures_by_date(API_KEY, BASE_URL, selected_ids, tomorrow, bypass_limit_check=True)
+
+                if error_tomorrow:
+                    st.error(f"Hata: {error_tomorrow}")
+                elif not fixtures_tomorrow:
+                    st.info("Yarın maç yok.")
+                else:
+                    for fix in fixtures_tomorrow:
+                        st.markdown(f"🕐 `{fix['time']}` | {fix['league_name']}")
+                        st.markdown(f"⚽ **{fix['home_name']} vs {fix['away_name']}**")
+                        st.markdown("---")
 
     st.markdown("---")
     st.subheader("Takım ve Lig Kod Bulucu")
@@ -1915,97 +1921,83 @@ def main():
             else:
                 st.session_state.favorite_leagues = None
 
-        st.sidebar.title(f"Hoş Geldin, *{st.session_state['name']}*")
+        # ============================================================================
+        # PROFESYONEL SİDEBAR YAPISI
+        # ============================================================================
+        
+        # Hoşgeldin Başlığı
+        st.sidebar.markdown(f"""
+        <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center;'>
+            <h2 style='color: white; margin: 0;'>👋 Hoş Geldin</h2>
+            <p style='color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 1.1em;'>{st.session_state['name']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # ============================================================================
+        # NAVİGASYON MENÜSÜ
+        # ============================================================================
+        st.sidebar.markdown("### 🧭 Navigasyon")
+        
+        nav_col1, nav_col2, nav_col3 = st.sidebar.columns(3)
+        with nav_col1:
+            if st.button("🏠", use_container_width=True, key="nav_home", help="Ana Sayfa"):
+                st.session_state.view = 'home'
+                st.rerun()
+        with nav_col2:
+            if st.button("🗓️", use_container_width=True, key="nav_dashboard", help="Maç Panosu"):
+                st.session_state.view = 'dashboard'
+                st.rerun()
+        with nav_col3:
+            if st.button("🔩", use_container_width=True, key="nav_manual", help="Manuel Analiz"):
+                st.session_state.view = 'manual'
+                st.rerun()
         
         st.sidebar.markdown("---")
         
-        if st.sidebar.button("🏠 Ana Sayfa", use_container_width=True, key="nav_home"):
-            st.session_state.view = 'home'
-            st.rerun()
-        if st.sidebar.button("🗓️ Maç Panosu", use_container_width=True, key="nav_dashboard"):
-            st.session_state.view = 'dashboard'
-            st.rerun()
-        if st.sidebar.button("🔩 Manuel Analiz", use_container_width=True, key="nav_manual"):
-            st.session_state.view = 'manual'
-            st.rerun()
+        # ============================================================================
+        # HESAP BİLGİLERİ VE İSTATİSTİKLER
+        # ============================================================================
+        st.sidebar.markdown("### 👤 Hesap Bilgileri")
         
-        st.sidebar.markdown("---")
-        
-        with st.sidebar.expander("Hesabım"):
-            st.write(f"**Kullanıcı Adı:** {username}")
-            
-            st.subheader("Parola Değiştir")
-            new_password = st.text_input("Yeni Parola", type="password", key="new_pw")
-            confirm_password = st.text_input("Yeni Parolayı Doğrula", type="password", key="confirm_pw")
-            if st.button("Parolayı Güncelle"):
-                if not new_password or not confirm_password:
-                    st.warning("Lütfen her iki parola alanını da doldurun.")
-                elif new_password != confirm_password:
-                    st.error("Girdiğiniz parolalar eşleşmiyor!")
-                else:
-                    result = change_password(username, new_password)
-                    if result == 0:
-                        st.success("Parolanız başarıyla güncellendi.")
-                    else:
-                        st.error("Parola güncellenirken bir hata oluştu.")
-            
-            st.subheader("E-posta Değiştir")
-            current_email = config['credentials']['usernames'][username].get('email', '')
-            new_email = st.text_input("Yeni E-posta Adresi", value=current_email, key="new_email")
-            if st.button("E-postayı Güncelle"):
-                if not new_email:
-                    st.warning("Lütfen e-posta alanını doldurun.")
-                else:
-                    result = change_email(username, new_email)
-                    if result == 0:
-                        st.success("E-posta adresiniz başarıyla güncellendi.")
-                        st.rerun()
-                    else:
-                        st.error("E-posta güncellenirken bir hata oluştu.")
-        
+        # Admin kontrolü
         try:
             usage_data = api_utils._read_usage_file()
             per_user_limit = usage_data.get('_limits', {}).get(username)
         except Exception:
             per_user_limit = None
         
-        # Admin kullanıcılar için sınırsız göster
         is_admin = username in st.session_state.get('admin_users', [])
         
         if is_admin:
-            st.sidebar.success(f"Hesap Türü: **👑 Admin**")
+            st.sidebar.success("👑 **Admin Hesabı**")
             st.sidebar.metric(label="API Hakkı", value="♾️ Sınırsız", delta="Admin erişimi")
         else:
             user_limit = int(per_user_limit) if per_user_limit is not None else api_utils.get_api_limit_for_user(user_tier)
             current_usage = api_utils.get_current_usage(username)
             remaining_requests = max(0, user_limit - current_usage.get('count', 0))
-            st.sidebar.info(f"Hesap Türü: **{user_tier.capitalize()}**")
-            st.sidebar.metric(label="Kalan Günlük API Hakkı", value=f"{remaining_requests} / {user_limit}")
-
-        # Çıkış butonu - logout sonrası query params'ı temizle
-        if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True, key='logout_button_custom'):
-            authenticator.logout()
-            st.session_state['authentication_status'] = False
-            st.session_state['username'] = None
-            st.session_state['name'] = None
-            # Query params'dan auth_user'ı sil
-            if 'auth_user' in st.query_params:
-                del st.query_params['auth_user']
-            st.rerun()
-            # Session state temizle
-            for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
-        
+            
+            # Tier badge
+            tier_color = "green" if user_tier == 'ücretli' else "blue"
+            tier_icon = "💎" if user_tier == 'ücretli' else "🆓"
+            st.sidebar.info(f"{tier_icon} **{user_tier.capitalize()} Üyelik**")
+            
+            # API kullanım progress bar
+            usage_percentage = (current_usage.get('count', 0) / user_limit * 100) if user_limit > 0 else 0
+            st.sidebar.progress(usage_percentage / 100, text=f"API Kullanımı: {current_usage.get('count', 0)}/{user_limit}")
+            
         st.sidebar.markdown("---")
         
-        with st.sidebar.expander("⭐ Favori Ligleri Yönet"):
+        # ============================================================================
+        # HIZLI ERİŞİM AYARLARI
+        # ============================================================================
+        st.sidebar.markdown("### ⚙️ Hızlı Ayarlar")
+        
+        with st.sidebar.expander("⭐ Favori Ligleri Yönet", expanded=False):
             all_leagues = list(INTERESTING_LEAGUES.values())
             stored_favorites = st.session_state.get('favorite_leagues')
             
             # Config'den yükle
-            username = st.session_state.get('username')
             if stored_favorites is None and username:
                 stored_favorites = load_user_favorite_leagues(username)
                 if stored_favorites:
@@ -2017,37 +2009,89 @@ def main():
                 st.session_state.favorite_leagues = stored_favorites
             
             current_favorites = normalize_league_labels(stored_favorites)
-            new_favorites = st.multiselect("Favori liglerinizi seçin:", options=all_leagues, default=current_favorites)
-            if st.button("Favorileri Kaydet", key="save_fav"):
+            st.info(f"📋 Seçili: {len(current_favorites)} lig")
+            new_favorites = st.multiselect("Favori liglerinizi seçin:", options=all_leagues, default=current_favorites, key="fav_leagues_multi")
+            if st.button("✅ Favorileri Kaydet", key="save_fav", use_container_width=True):
                 st.session_state.favorite_leagues = new_favorites
                 # Config.yaml'e kaydet
                 if username:
                     if save_user_favorite_leagues(username, new_favorites):
-                        st.success("✅ Favoriler kalıcı olarak kaydedildi!")
+                        st.success("✅ Kalıcı olarak kaydedildi!")
                     else:
-                        st.warning("⚠️ Favoriler oturum için kaydedildi (kalıcı kayıt başarısız).")
+                        st.warning("⚠️ Oturum için kaydedildi.")
                 else:
-                    st.warning("⚠️ Favoriler sadece bu oturum için kaydedildi.")
+                    st.warning("⚠️ Oturum için kaydedildi.")
                 safe_rerun()
 
-        st.sidebar.markdown("---")
-
-        with st.sidebar.expander("⚙️ Model Ayarlarını Değiştir"):
-            value_threshold = st.slider("Değerli Oran Eşiği (%)", 1, 20, 5)
-            injury_impact = st.slider("Kilit Oyuncu Etkisi", 0.5, 1.0, DEFAULT_KEY_PLAYER_IMPACT_MULTIPLIER, 0.05)
-            max_goals = st.slider("Maksimum Gol Beklentisi", 1.5, 4.0, DEFAULT_MAX_GOAL_EXPECTANCY, 0.1)
+        with st.sidebar.expander("🎯 Model Parametreleri", expanded=False):
+            st.caption("Tahmin modelini özelleştirin")
+            value_threshold = st.slider("Değerli Oran Eşiği (%)", 1, 20, 5, help="Piyasa oranlarından sapma eşiği")
+            injury_impact = st.slider("Sakatlık Etkisi", 0.5, 1.0, DEFAULT_KEY_PLAYER_IMPACT_MULTIPLIER, 0.05, help="Kilit oyuncu sakatlıklarının etkisi")
+            max_goals = st.slider("Maksimum Gol Beklentisi", 1.5, 4.0, DEFAULT_MAX_GOAL_EXPECTANCY, 0.1, help="Tek maçta beklenen maksimum gol")
             st.session_state.model_params = {
                 "injury_impact": injury_impact,
                 "max_goals": max_goals,
                 "value_threshold": value_threshold,
             }
+            st.success("✅ Ayarlar uygulandı")
 
-        is_admin = False
-        try:
-            if username in admin_users or user_tier == 'admin':
-                is_admin = True
-        except Exception:
-            is_admin = False
+        with st.sidebar.expander("👤 Hesap Ayarları", expanded=False):
+            st.write(f"**👤 Kullanıcı Adı:** {username}")
+            st.write(f"**📧 E-posta:** {config['credentials']['usernames'][username].get('email', 'N/A')}")
+            
+            st.markdown("#### 🔑 Parola Değiştir")
+            new_password = st.text_input("Yeni Parola", type="password", key="new_pw")
+            confirm_password = st.text_input("Parolayı Doğrula", type="password", key="confirm_pw")
+            if st.button("Parolayı Güncelle", use_container_width=True, key="update_pw_btn"):
+                if not new_password or not confirm_password:
+                    st.warning("Lütfen her iki alanı da doldurun.")
+                elif new_password != confirm_password:
+                    st.error("Parolalar eşleşmiyor!")
+                else:
+                    result = change_password(username, new_password)
+                    if result == 0:
+                        st.success("✅ Parola güncellendi.")
+                    else:
+                        st.error("❌ Güncelleme başarısız.")
+            
+            st.markdown("#### 📧 E-posta Değiştir")
+            current_email = config['credentials']['usernames'][username].get('email', '')
+            new_email = st.text_input("Yeni E-posta", value=current_email, key="new_email")
+            if st.button("E-postayı Güncelle", use_container_width=True, key="update_email_btn"):
+                if not new_email:
+                    st.warning("E-posta alanı boş olamaz.")
+                else:
+                    result = change_email(username, new_email)
+                    if result == 0:
+                        st.success("✅ E-posta güncellendi.")
+                        st.rerun()
+                    else:
+                        st.error("❌ Güncelleme başarısız.")
+        
+        st.sidebar.markdown("---")
+        
+        # ============================================================================
+        # ÇIKIŞ BUTONU
+        # ============================================================================
+        if st.sidebar.button("🚪 Çıkış Yap", use_container_width=True, key='logout_button_custom', type="primary"):
+            authenticator.logout()
+            st.session_state['authentication_status'] = False
+            st.session_state['username'] = None
+            st.session_state['name'] = None
+            # Query params'dan auth_user'ı sil
+            if 'auth_user' in st.query_params:
+                del st.query_params['auth_user']
+            # Session state temizle
+            for key in ['authentication_status', 'username', 'name', 'tier', 'bypass_login', 'view']:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+        
+        st.sidebar.markdown("---")
+        
+        # ============================================================================
+        # YÖNETİCİ PANELİ
+        # ============================================================================
 
         if is_admin:
             with st.sidebar.expander("🔧 Yönetici Paneli", expanded=False):
