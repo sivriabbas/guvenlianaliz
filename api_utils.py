@@ -35,15 +35,13 @@ TIER_LIMITS = {
 # Admin action log is stored inside the usage file under the key '_admin_log' as a list of entries
 ADMIN_LOG_KEY = '_admin_log'
 
-@st.cache_data(ttl=18000)
 def get_api_limit_for_user(tier: str) -> int:
     """Kullanıcının seviyesine göre API limitini döner."""
     # Varsayılan olarak bilinmeyen bir tier için ücretsiz tier limiti uygulanır
     return TIER_LIMITS.get(tier, TIER_LIMITS['ücretsiz'])
 
-@st.cache_data(ttl=18000)
 def get_current_usage(username: str) -> Dict[str, Any]:
-    """Kullanıcının mevcut API kullanım verisini dosyadan okur."""
+    """Kullanıcının mevcut API kullanım verisini dosyadan okur. CACHE YOK - Her zaman güncel veri."""
     today_str = str(date.today())
     month_str = date.today().strftime('%Y-%m')
     if not os.path.exists(USAGE_FILE):
@@ -57,16 +55,21 @@ def get_current_usage(username: str) -> Dict[str, Any]:
 
     user_data = usage_data.get(username, {})
 
-    # Ensure fields exist
+    # Tarih değişti mi kontrol et (gece 00:00'da reset)
     if user_data.get('date') != today_str:
-        # reset daily counter
+        # Günlük sayacı sıfırla ve dosyaya yaz
         user_data['date'] = today_str
         user_data['count'] = 0
+        usage_data[username] = user_data
+        _write_usage_file(usage_data)
 
+    # Ay değişti mi kontrol et
     if user_data.get('month') != month_str:
-        # reset monthly counter
+        # Aylık sayacı sıfırla
         user_data['month'] = month_str
         user_data['monthly_count'] = 0
+        usage_data[username] = user_data
+        _write_usage_file(usage_data)
 
     user_data.setdefault('count', 0)
     user_data.setdefault('monthly_count', 0)
@@ -252,16 +255,15 @@ def log_admin_action(admin: str, action: str, target: str, details: Optional[Dic
         pass
 
 
-@st.cache_data(ttl=18000)
 def get_admin_log(limit: int = 50) -> List[Dict[str, Any]]:
+    """Admin log'unu döner. Cache YOK."""
     data = _read_usage_file()
     log = data.get(ADMIN_LOG_KEY, [])
     return log[:limit]
 
 
-@st.cache_data(ttl=18000)
 def reset_daily_usage(username: str = None):
-    """Sadece belirtilen kullanıcı için veya tüm kullanıcılar için günlük sayacı sıfırlar."""
+    """Sadece belirtilen kullanıcı için veya tüm kullanıcılar için günlük sayacı sıfırlar. Cache YOK."""
     data = _read_usage_file()
     today_str = str(date.today())
     if username:
@@ -279,9 +281,8 @@ def reset_daily_usage(username: str = None):
     _write_usage_file(data)
 
 
-@st.cache_data(ttl=18000)
 def get_usage_summary() -> Dict[str, Dict[str, Any]]:
-    """Tüm kullanıcıların günlük ve aylık kullanım özetini döner."""
+    """Tüm kullanıcıların günlük ve aylık kullanım özetini döner. Cache YOK - Her zaman güncel."""
     data = _read_usage_file()
     summary = {}
     for k, v in data.items():
@@ -447,10 +448,18 @@ def increment_api_usage() -> None:
     
     # Admin için de sayacı artır ama limit kontrolü yapma
     if username:
+        # Önce mevcut kullanımı al (tarih kontrolü yapılacak)
         user_usage = get_current_usage(username)
+        
+        # Sayacı artır
         user_usage['count'] = user_usage.get('count', 0) + 1
         user_usage['monthly_count'] = user_usage.get('monthly_count', 0) + 1
+        
+        # Dosyaya yaz
         update_usage(username, user_usage)
+        
+        # Debug: Konsola yazdır
+        print(f"[API USAGE] {username}: Günlük={user_usage['count']}, Aylık={user_usage['monthly_count']}")
 
 def make_api_request(api_key: str, base_url: str, endpoint: str, params: Dict[str, Any], skip_limit: bool = False) -> Tuple[Optional[Any], Optional[str]]:
     if not skip_limit:
