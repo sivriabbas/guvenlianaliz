@@ -847,3 +847,287 @@ def get_team_injuries(api_key: str, base_url: str, team_id: int, fixture_id: Opt
         })
     
     return active_injuries, None
+
+
+# =============================================================================
+# ADMIN YÖNETİM FONKSİYONLARI
+# =============================================================================
+
+def get_all_users_info() -> Dict[str, Any]:
+    """
+    Tüm kullanıcıların detaylı bilgilerini döndürür.
+    Returns: {username: {name, email, tier, daily_limit, monthly_limit, usage_today, usage_month, ip_restricted}}
+    """
+    try:
+        # Config.yaml'den kullanıcı bilgilerini al
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        users_info = {}
+        usernames_data = config.get('credentials', {}).get('usernames', {})
+        
+        # Usage data'yı al
+        usage_data = _read_usage_file()
+        
+        for username, user_data in usernames_data.items():
+            user_usage = get_current_usage(username)
+            
+            # Günlük ve aylık limitler
+            daily_limit = usage_data.get('_limits', {}).get(username, TIER_LIMITS.get(user_data.get('tier', 'ücretsiz')))
+            monthly_limit = usage_data.get('_monthly_limits', {}).get(username, 0)
+            
+            users_info[username] = {
+                'name': user_data.get('name', 'N/A'),
+                'email': user_data.get('email', 'N/A'),
+                'tier': user_data.get('tier', 'ücretsiz'),
+                'daily_limit': daily_limit,
+                'monthly_limit': monthly_limit if monthly_limit else None,
+                'usage_today': user_usage.get('count', 0),
+                'usage_month': user_usage.get('monthly_count', 0),
+                'ip_restricted': user_data.get('ip_restricted', False),
+                'allowed_ips': user_data.get('allowed_ips', [])
+            }
+        
+        return users_info
+    except Exception as e:
+        print(f"[ERROR] get_all_users_info: {e}")
+        return {}
+
+
+def delete_user(username: str) -> Tuple[bool, str]:
+    """
+    Kullanıcıyı config.yaml'den siler.
+    Returns: (success: bool, message: str)
+    """
+    try:
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if username not in config.get('credentials', {}).get('usernames', {}):
+            return False, f"Kullanıcı '{username}' bulunamadı."
+        
+        del config['credentials']['usernames'][username]
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True)
+        
+        return True, f"Kullanıcı '{username}' başarıyla silindi."
+    except Exception as e:
+        return False, f"Kullanıcı silinirken hata oluştu: {e}"
+
+
+def reset_user_password(username: str, new_password: str) -> Tuple[bool, str]:
+    """
+    Kullanıcının şifresini sıfırlar.
+    Returns: (success: bool, message: str)
+    """
+    try:
+        import streamlit_authenticator as stauth
+        config_path = 'config.yaml'
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if username not in config.get('credentials', {}).get('usernames', {}):
+            return False, f"Kullanıcı '{username}' bulunamadı."
+        
+        # Şifreyi hash'le
+        hasher = stauth.Hasher()
+        hashed_password = hasher.hash(new_password)
+        
+        config['credentials']['usernames'][username]['password'] = hashed_password
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True)
+        
+        return True, f"Kullanıcı '{username}' şifresi başarıyla güncellendi."
+    except Exception as e:
+        return False, f"Şifre güncellenirken hata oluştu: {e}"
+
+
+def set_ip_restriction(username: str, enabled: bool, allowed_ips: list = None) -> Tuple[bool, str]:
+    """
+    Kullanıcı için IP kısıtlaması ayarlar.
+    Args:
+        username: Kullanıcı adı
+        enabled: IP kısıtlaması aktif mi?
+        allowed_ips: İzin verilen IP listesi (varsayılan: [])
+    Returns: (success: bool, message: str)
+    """
+    try:
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        if username not in config.get('credentials', {}).get('usernames', {}):
+            return False, f"Kullanıcı '{username}' bulunamadı."
+        
+        config['credentials']['usernames'][username]['ip_restricted'] = enabled
+        config['credentials']['usernames'][username]['allowed_ips'] = allowed_ips or []
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True)
+        
+        status = "aktif" if enabled else "pasif"
+        return True, f"Kullanıcı '{username}' IP kısıtlaması {status} yapıldı."
+    except Exception as e:
+        return False, f"IP kısıtlaması ayarlanırken hata oluştu: {e}"
+
+
+def check_ip_restriction(username: str, user_ip: str) -> Tuple[bool, str]:
+    """
+    Kullanıcının IP kısıtlaması var mı ve izinli mi kontrol eder.
+    Returns: (allowed: bool, message: str)
+    """
+    try:
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        user_data = config.get('credentials', {}).get('usernames', {}).get(username, {})
+        
+        ip_restricted = user_data.get('ip_restricted', False)
+        if not ip_restricted:
+            return True, "IP kısıtlaması yok."
+        
+        allowed_ips = user_data.get('allowed_ips', [])
+        if user_ip in allowed_ips:
+            return True, "IP izinli."
+        
+        return False, f"IP adresi ({user_ip}) bu hesap için yetkilendirilmemiş."
+    except Exception as e:
+        return False, f"IP kontrolü yapılırken hata oluştu: {e}"
+
+
+def add_admin_user(username: str) -> Tuple[bool, str]:
+    """
+    Kullanıcıyı admin listesine ekler.
+    Returns: (success: bool, message: str)
+    """
+    try:
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        # Kullanıcının var olup olmadığını kontrol et
+        if username not in config.get('credentials', {}).get('usernames', {}):
+            return False, f"Kullanıcı '{username}' bulunamadı. Önce kullanıcı oluşturun."
+        
+        admin_users = config.get('admin_users', [])
+        if username in admin_users:
+            return False, f"Kullanıcı '{username}' zaten admin."
+        
+        admin_users.append(username)
+        config['admin_users'] = admin_users
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True)
+        
+        return True, f"Kullanıcı '{username}' admin yetkisi aldı."
+    except Exception as e:
+        return False, f"Admin yetkisi verilirken hata oluştu: {e}"
+
+
+def remove_admin_user(username: str) -> Tuple[bool, str]:
+    """
+    Kullanıcıdan admin yetkisini kaldırır.
+    Returns: (success: bool, message: str)
+    """
+    try:
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        admin_users = config.get('admin_users', [])
+        if username not in admin_users:
+            return False, f"Kullanıcı '{username}' zaten admin değil."
+        
+        admin_users.remove(username)
+        config['admin_users'] = admin_users
+        
+        with open(config_path, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True)
+        
+        return True, f"Kullanıcı '{username}' admin yetkisi kaldırıldı."
+    except Exception as e:
+        return False, f"Admin yetkisi kaldırılırken hata oluştu: {e}"
+
+
+def get_admin_users() -> list:
+    """
+    Admin kullanıcı listesini döndürür.
+    """
+    try:
+        config_path = 'config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        return config.get('admin_users', [])
+    except Exception:
+        return []
+
+
+def export_usage_stats() -> Dict[str, Any]:
+    """
+    Tüm kullanıcıların kullanım istatistiklerini export eder.
+    Returns: Dictionary with detailed usage stats
+    """
+    try:
+        usage_data = _read_usage_file()
+        all_users = get_all_users_info()
+        
+        export_data = {
+            'export_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'total_users': len(all_users),
+            'users': []
+        }
+        
+        for username, info in all_users.items():
+            export_data['users'].append({
+                'username': username,
+                'name': info['name'],
+                'email': info['email'],
+                'tier': info['tier'],
+                'daily_limit': info['daily_limit'],
+                'monthly_limit': info['monthly_limit'],
+                'usage_today': info['usage_today'],
+                'usage_month': info['usage_month'],
+                'ip_restricted': info['ip_restricted']
+            })
+        
+        return export_data
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def reset_all_daily_counters() -> Tuple[bool, str]:
+    """
+    Tüm kullanıcıların günlük sayaçlarını sıfırlar.
+    Returns: (success: bool, message: str)
+    """
+    try:
+        reset_daily_usage()
+        return True, "Tüm günlük sayaçlar başarıyla sıfırlandı."
+    except Exception as e:
+        return False, f"Sayaçlar sıfırlanırken hata oluştu: {e}"
+
+
+def reset_all_monthly_counters() -> Tuple[bool, str]:
+    """
+    Tüm kullanıcıların aylık sayaçlarını sıfırlar.
+    Returns: (success: bool, message: str)
+    """
+    try:
+        usage_data = _read_usage_file()
+        today = datetime.now().date()
+        
+        for username in usage_data.keys():
+            if not username.startswith('_'):
+                usage_data[username]['monthly_count'] = 0
+                usage_data[username]['month'] = today.strftime('%Y-%m')
+        
+        _write_usage_file(usage_data)
+        return True, "Tüm aylık sayaçlar başarıyla sıfırlandı."
+    except Exception as e:
+        return False, f"Aylık sayaçlar sıfırlanırken hata oluştu: {e}"

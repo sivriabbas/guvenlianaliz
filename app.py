@@ -6,6 +6,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, Optional, List
+import json
 
 # --- ZAMANLANMIŞ GÖREV TETİKLEYİCİSİ ---
 # Bu blok, uygulamanın en başında olmalıdır.
@@ -1718,6 +1719,17 @@ def main():
             
             # Başarılı giriş sonrası session state'e kaydet ve URL'e ekle
             if authentication_status:
+                # IP kısıtlaması kontrolü
+                user_ip = api_utils.get_public_ip()
+                ip_allowed, ip_message = api_utils.check_ip_restriction(username, user_ip)
+                
+                if not ip_allowed:
+                    st.error(f"🚫 Giriş Reddedildi: {ip_message}")
+                    st.info(f"Mevcut IP Adresiniz: {user_ip}")
+                    st.warning("Yetkilendirilmiş bir IP adresinden giriş yapmanız gerekmektedir. Lütfen sistem yöneticisi ile iletişime geçin.")
+                    st.session_state['authentication_status'] = False
+                    st.stop()
+                
                 st.session_state['authentication_status'] = True
                 st.session_state['username'] = username
                 st.session_state['name'] = name
@@ -2037,84 +2049,301 @@ def main():
             is_admin = False
 
         if is_admin:
-            with st.sidebar.expander("Yönetici Paneli", expanded=False):
-                st.subheader("Kullanıcı Seviyesi Yönetimi")
+            with st.sidebar.expander("🔧 Yönetici Paneli", expanded=False):
+                admin_tab = st.radio(
+                    "Admin İşlemleri",
+                    ["👥 Kullanıcı Yönetimi", "📊 İstatistikler", "⚙️ Sistem Ayarları", "🛡️ Admin Yönetimi"],
+                    horizontal=False,
+                    key="admin_tab_selector"
+                )
+                
                 all_users = list(config.get('credentials', {}).get('usernames', {}).keys())
-                selected_user_for_tier = st.selectbox('Seviyesini değiştirmek için kullanıcı seçin:', options=all_users, key="tier_user_select")
                 
-                if selected_user_for_tier:
-                    current_tier = config['credentials']['usernames'][selected_user_for_tier].get('tier', 'ücretsiz')
-                    tier_options = ['ücretsiz', 'ücretli']
-                    current_index = tier_options.index(current_tier) if current_tier in tier_options else 0
+                # ==================== KULLANICI YÖNETİMİ ====================
+                if admin_tab == "👥 Kullanıcı Yönetimi":
+                    st.markdown("### 👥 Kullanıcı Yönetimi")
                     
-                    new_tier = st.radio(f"**{selected_user_for_tier}** için yeni seviye seçin:", options=tier_options, index=current_index, horizontal=True, key=f"tier_radio_{selected_user_for_tier}")
+                    # Kullanıcı Listesi
+                    with st.expander("📋 Tüm Kullanıcılar", expanded=True):
+                        users_info = api_utils.get_all_users_info()
+                        if users_info:
+                            for username, info in users_info.items():
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    tier_emoji = "💎" if info['tier'] == 'ücretli' else "🆓"
+                                    st.markdown(f"**{tier_emoji} {username}** - {info['name']}")
+                                    st.caption(f"📧 {info['email']} | 📊 {info['usage_today']}/{info['daily_limit']} günlük")
+                                with col2:
+                                    if st.button("🔍", key=f"view_{username}", help="Detayları Gör"):
+                                        st.session_state[f'selected_user_detail'] = username
                     
-                    if st.button("Kullanıcı Seviyesini Güncelle", key="update_tier"):
-                        success, message = api_utils.set_user_tier(selected_user_for_tier, new_tier)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-
-                st.markdown("---")
-                st.subheader("Manuel Limit ve Sayaç Yönetimi")
-                sel_user = st.selectbox('Kullanıcı seç', options=[''] + all_users)
-                
-                # Seçili kullanıcının mevcut bilgilerini göster
-                if sel_user:
-                    try:
-                        usage_data = api_utils._read_usage_file()
-                        current_daily_limit = usage_data.get('_limits', {}).get(sel_user)
-                        current_monthly_limit = usage_data.get('_monthly_limits', {}).get(sel_user)
-                        user_usage = api_utils.get_current_usage(sel_user)
+                    st.markdown("---")
+                    
+                    # Kullanıcı Detayları ve İşlemler
+                    selected_user = st.selectbox('İşlem yapmak için kullanıcı seçin:', options=[''] + all_users, key="user_mgmt_select")
+                    
+                    if selected_user:
+                        users_info = api_utils.get_all_users_info()
+                        user_info = users_info.get(selected_user, {})
                         
-                        c1, c2, c3 = st.columns(3)
-                        with c1:
-                            st.metric("Günlük Limit", 
-                                     f"{current_daily_limit if current_daily_limit else 'Varsayılan'}")
-                        with c2:
-                            st.metric("Aylık Limit", 
-                                     f"{current_monthly_limit if current_monthly_limit else 'Yok'}")
-                        with c3:
-                            st.metric("Bugün Kullanım", 
-                                     f"{user_usage.get('count', 0)}")
-                    except Exception as e:
-                        st.error(f"Bilgi alınamadı: {e}")
+                        # Kullanıcı Bilgileri
+                        st.markdown(f"### 📝 {selected_user} - Detaylar")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Seviye", user_info.get('tier', 'N/A').upper())
+                        with col2:
+                            st.metric("Bugün Kullanım", f"{user_info.get('usage_today', 0)}/{user_info.get('daily_limit', 0)}")
+                        with col3:
+                            st.metric("Bu Ay Kullanım", user_info.get('usage_month', 0))
+                        
+                        # Seviye Değiştirme
+                        with st.expander("🔄 Seviye Değiştir"):
+                            current_tier = user_info.get('tier', 'ücretsiz')
+                            new_tier = st.selectbox('Yeni Seviye', options=['ücretsiz', 'ücretli'], 
+                                                    index=0 if current_tier == 'ücretsiz' else 1,
+                                                    key=f"tier_change_{selected_user}")
+                            if st.button("Seviye Güncelle", key=f"update_tier_{selected_user}"):
+                                success, message = api_utils.set_user_tier(selected_user, new_tier)
+                                if success:
+                                    st.success(message)
+                                    st.rerun()
+                                else:
+                                    st.error(message)
+                        
+                        # Şifre Sıfırlama
+                        with st.expander("🔑 Şifre Sıfırla"):
+                            new_password = st.text_input("Yeni Şifre", type="password", key=f"new_pwd_{selected_user}")
+                            new_password_confirm = st.text_input("Şifre Tekrar", type="password", key=f"new_pwd_confirm_{selected_user}")
+                            if st.button("Şifre Güncelle", key=f"reset_pwd_{selected_user}"):
+                                if not new_password:
+                                    st.error("Lütfen yeni şifre girin.")
+                                elif new_password != new_password_confirm:
+                                    st.error("Şifreler eşleşmiyor!")
+                                else:
+                                    success, message = api_utils.reset_user_password(selected_user, new_password)
+                                    if success:
+                                        st.success(message)
+                                    else:
+                                        st.error(message)
+                        
+                        # IP Kısıtlama
+                        with st.expander("🌐 IP Kısıtlama"):
+                            ip_restricted = user_info.get('ip_restricted', False)
+                            allowed_ips = user_info.get('allowed_ips', [])
+                            
+                            st.toggle("IP Kısıtlaması Aktif", value=ip_restricted, key=f"ip_toggle_{selected_user}")
+                            
+                            if st.session_state.get(f"ip_toggle_{selected_user}", False):
+                                st.markdown("**İzin Verilen IP Adresleri:**")
+                                if allowed_ips:
+                                    for ip in allowed_ips:
+                                        col1, col2 = st.columns([4, 1])
+                                        with col1:
+                                            st.code(ip)
+                                        with col2:
+                                            if st.button("❌", key=f"remove_ip_{selected_user}_{ip}"):
+                                                allowed_ips.remove(ip)
+                                                success, msg = api_utils.set_ip_restriction(selected_user, True, allowed_ips)
+                                                if success:
+                                                    st.rerun()
+                                
+                                new_ip = st.text_input("Yeni IP Ekle", placeholder="örn: 192.168.1.100", key=f"new_ip_{selected_user}")
+                                if st.button("IP Ekle", key=f"add_ip_{selected_user}"):
+                                    if new_ip:
+                                        if new_ip not in allowed_ips:
+                                            allowed_ips.append(new_ip)
+                                        success, message = api_utils.set_ip_restriction(selected_user, True, allowed_ips)
+                                        if success:
+                                            st.success(message)
+                                            st.rerun()
+                                        else:
+                                            st.error(message)
+                            
+                            if st.button("IP Ayarlarını Kaydet", key=f"save_ip_{selected_user}"):
+                                enabled = st.session_state.get(f"ip_toggle_{selected_user}", False)
+                                success, message = api_utils.set_ip_restriction(selected_user, enabled, allowed_ips)
+                                if success:
+                                    st.success(message)
+                                else:
+                                    st.error(message)
+                        
+                        # Limitler
+                        with st.expander("📊 Limit Yönetimi"):
+                            daily_limit = st.number_input('Günlük Limit (0 = varsayılan)', min_value=0, value=user_info.get('daily_limit', 0), step=50, key=f"daily_lim_{selected_user}")
+                            monthly_limit = st.number_input('Aylık Limit (0 = yok)', min_value=0, value=user_info.get('monthly_limit') or 0, step=100, key=f"monthly_lim_{selected_user}")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button('Günlük Limiti Uygula', key=f"apply_daily_{selected_user}"):
+                                    api_utils.set_user_daily_limit(selected_user, int(daily_limit))
+                                    st.success(f'Günlük limit güncellendi: {daily_limit}')
+                            with col2:
+                                if st.button('Aylık Limiti Uygula', key=f"apply_monthly_{selected_user}"):
+                                    api_utils.set_user_monthly_limit(selected_user, int(monthly_limit))
+                                    st.success(f'Aylık limit güncellendi: {monthly_limit}')
+                        
+                        # Kullanıcı Silme
+                        with st.expander("🗑️ Kullanıcıyı Sil", expanded=False):
+                            st.warning(f"⚠️ **{selected_user}** kullanıcısını silmek üzeresiniz. Bu işlem geri alınamaz!")
+                            confirm_delete = st.text_input(f"Silmek için '{selected_user}' yazın:", key=f"confirm_delete_{selected_user}")
+                            if st.button("Kullanıcıyı Sil", key=f"delete_user_{selected_user}", type="primary"):
+                                if confirm_delete == selected_user:
+                                    success, message = api_utils.delete_user(selected_user)
+                                    if success:
+                                        st.success(message)
+                                        st.rerun()
+                                    else:
+                                        st.error(message)
+                                else:
+                                    st.error("Kullanıcı adı eşleşmiyor!")
                 
-                daily_lim = st.number_input('Yeni Günlük limit (0 = varsayılan)', min_value=0, value=0, step=50)
-                monthly_lim = st.number_input('Yeni Aylık limit (0 = yok)', min_value=0, value=0, step=100)
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    if st.button('Günlük limiti uygula'):
-                        if not sel_user: 
-                            st.error('Lütfen bir kullanıcı seçin')
-                        else:
-                            api_utils.set_user_daily_limit(sel_user, int(daily_lim))
-                            st.cache_data.clear()  # Cache'i temizle
-                            st.success(f'Günlük limit {sel_user} için {daily_lim} olarak kaydedildi')
-                            st.info('⚠️ Kullanıcının yeniden giriş yapması önerilir.')
-                with col2:
-                    if st.button('Aylık limiti uygula'):
-                        if not sel_user: 
-                            st.error('Lütfen bir kullanıcı seçin')
-                        else:
-                            api_utils.set_user_monthly_limit(sel_user, int(monthly_lim))
-                            st.cache_data.clear()  # Cache'i temizle
-                            st.success(f'Aylık limit {sel_user} için {monthly_lim} olarak kaydedildi')
-                            st.info('⚠️ Kullanıcının yeniden giriş yapması önerilir.')
-                with col3:
-                    if st.button('Günlük sayaçları sıfırla'):
-                        api_utils.reset_daily_usage()
-                        st.cache_data.clear()  # Cache'i temizle
-                        st.success('Günlük sayaçlar sıfırlandı')
+                # ==================== İSTATİSTİKLER ====================
+                elif admin_tab == "📊 İstatistikler":
+                    st.markdown("### 📊 Sistem İstatistikleri")
+                    
+                    users_info = api_utils.get_all_users_info()
+                    
+                    # Genel İstatistikler
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Toplam Kullanıcı", len(users_info))
+                    with col2:
+                        paid_users = sum(1 for u in users_info.values() if u['tier'] == 'ücretli')
+                        st.metric("Ücretli Kullanıcı", paid_users)
+                    with col3:
+                        total_usage_today = sum(u['usage_today'] for u in users_info.values())
+                        st.metric("Bugün Toplam Kullanım", total_usage_today)
+                    with col4:
+                        total_usage_month = sum(u['usage_month'] for u in users_info.values())
+                        st.metric("Bu Ay Toplam Kullanım", total_usage_month)
+                    
+                    st.markdown("---")
+                    
+                    # En Aktif Kullanıcılar
+                    st.markdown("### 🔥 En Aktif Kullanıcılar (Bu Ay)")
+                    sorted_users = sorted(users_info.items(), key=lambda x: x[1]['usage_month'], reverse=True)[:10]
+                    
+                    for idx, (username, info) in enumerate(sorted_users, 1):
+                        col1, col2, col3 = st.columns([1, 3, 2])
+                        with col1:
+                            st.markdown(f"**#{idx}**")
+                        with col2:
+                            tier_emoji = "💎" if info['tier'] == 'ücretli' else "🆓"
+                            st.markdown(f"{tier_emoji} **{username}**")
+                        with col3:
+                            st.markdown(f"📊 {info['usage_month']} kullanım")
+                    
+                    st.markdown("---")
+                    
+                    # Export İstatistikler
+                    if st.button("📥 İstatistikleri Export Et (JSON)", key="export_stats"):
+                        export_data = api_utils.export_usage_stats()
+                        st.download_button(
+                            label="İndir",
+                            data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                            file_name=f"usage_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                            mime="application/json"
+                        )
                 
-                st.markdown('---')
-                st.markdown('### Önbellek Yönetimi')
-                if st.button("Tüm Önbelleği Temizle"):
-                    st.cache_data.clear()
-                    st.success("Uygulama önbelleği başarıyla temizlendi!")
-                    safe_rerun()
+                # ==================== SİSTEM AYARLARI ====================
+                elif admin_tab == "⚙️ Sistem Ayarları":
+                    st.markdown("### ⚙️ Sistem Ayarları")
+                    
+                    # Sayaç Yönetimi
+                    with st.expander("🔄 Sayaç Yönetimi", expanded=True):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("🔄 Tüm Günlük Sayaçları Sıfırla", key="reset_daily_all"):
+                                success, message = api_utils.reset_all_daily_counters()
+                                if success:
+                                    st.success(message)
+                                else:
+                                    st.error(message)
+                        with col2:
+                            if st.button("🔄 Tüm Aylık Sayaçları Sıfırla", key="reset_monthly_all"):
+                                success, message = api_utils.reset_all_monthly_counters()
+                                if success:
+                                    st.success(message)
+                                else:
+                                    st.error(message)
+                    
+                    # Cache Yönetimi
+                    with st.expander("🗑️ Önbellek Yönetimi"):
+                        if st.button("🗑️ Tüm Önbelleği Temizle", key="clear_cache_admin"):
+                            st.cache_data.clear()
+                            st.success("Önbellek temizlendi!")
+                            safe_rerun()
+                    
+                    # Toplu İşlemler
+                    with st.expander("⚡ Toplu İşlemler"):
+                        st.markdown("**Tüm Kullanıcılar İçin Varsayılan Limitleri Ayarla**")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("Ücretsiz → 100", key="bulk_free"):
+                                users_info = api_utils.get_all_users_info()
+                                count = 0
+                                for username, info in users_info.items():
+                                    if info['tier'] == 'ücretsiz':
+                                        api_utils.set_user_daily_limit(username, 100)
+                                        count += 1
+                                st.success(f"{count} ücretsiz kullanıcı için limit 100 olarak ayarlandı.")
+                        with col2:
+                            if st.button("Ücretli → 500", key="bulk_paid"):
+                                users_info = api_utils.get_all_users_info()
+                                count = 0
+                                for username, info in users_info.items():
+                                    if info['tier'] == 'ücretli':
+                                        api_utils.set_user_daily_limit(username, 500)
+                                        count += 1
+                                st.success(f"{count} ücretli kullanıcı için limit 500 olarak ayarlandı.")
+                
+                # ==================== ADMİN YÖNETİMİ ====================
+                elif admin_tab == "🛡️ Admin Yönetimi":
+                    st.markdown("### 🛡️ Admin Yönetimi")
+                    
+                    admin_users = api_utils.get_admin_users()
+                    
+                    # Mevcut Adminler
+                    with st.expander("👑 Mevcut Admin Kullanıcılar", expanded=True):
+                        if admin_users:
+                            for admin in admin_users:
+                                col1, col2 = st.columns([4, 1])
+                                with col1:
+                                    st.markdown(f"👑 **{admin}**")
+                                with col2:
+                                    if admin != st.session_state.get('username'):  # Kendini silemez
+                                        if st.button("❌", key=f"remove_admin_{admin}"):
+                                            success, message = api_utils.remove_admin_user(admin)
+                                            if success:
+                                                st.success(message)
+                                                st.rerun()
+                                            else:
+                                                st.error(message)
+                        else:
+                            st.info("Admin kullanıcı bulunamadı.")
+                    
+                    st.markdown("---")
+                    
+                    # Admin Ekle
+                    with st.expander("➕ Yeni Admin Ekle"):
+                        available_users = [u for u in all_users if u not in admin_users]
+                        if available_users:
+                            new_admin = st.selectbox("Kullanıcı Seçin", options=[''] + available_users, key="new_admin_select")
+                            if st.button("Admin Yetkisi Ver", key="add_admin_btn"):
+                                if new_admin:
+                                    success, message = api_utils.add_admin_user(new_admin)
+                                    if success:
+                                        st.success(message)
+                                        st.rerun()
+                                    else:
+                                        st.error(message)
+                                else:
+                                    st.warning("Lütfen bir kullanıcı seçin.")
+                        else:
+                            st.info("Tüm kullanıcılar zaten admin.")
+                    
+                    st.markdown("---")
+                    st.info("💡 **Not:** Kendinizin admin yetkisini kaldıramazsınız.")
         
         st.sidebar.markdown("---")
         

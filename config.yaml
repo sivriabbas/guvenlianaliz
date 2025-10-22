@@ -2,7 +2,7 @@ admin_users:
 - sivrii1940
 - admin
 cookie:
-  expiry_days: 365  # 1 yıl boyunca login kalacak (daha uzun süre)
+  expiry_days: 365
   key: random_signature_key_burayi_degistir
   name: futbol_analiz_auth_cookie
 credentials:
@@ -34,6 +34,15 @@ credentials:
       tier: ücretsiz
     sivrii1940:
       email: sivrii1940@gmail.com
+      favorite_leagues:
+      - Turkey - Süper Lig
+      - England - Premier League
+      - Spain - La Liga
+      - Turkey - 3. Lig - Play-offs
+      - Netherlands - Eredivisie
+      - Scotland - Championship
+      - Georgia - Erovnuli Liga
+      - France - Ligue 1
       name: mustafa yılmaz
       password: $2b$12$jVRnV9OD7zeMJHA89zwo5uiVsfrBun9Hm8ttKivB1FKrmyG349iX6
       tier: ücretli
