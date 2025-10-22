@@ -77,19 +77,19 @@ def display_logo(sidebar=False, size="medium"):
     """Logoyu gösterir
     Args:
         sidebar: Sidebar'da mı gösterilecek
-        size: Logo boyutu - small (80px), medium (120px), large (180px)
+        size: Logo boyutu - small (100px), medium (140px), large (200px)
     """
     logo_base64 = get_logo_base64()
     if not logo_base64:
         return
     
-    sizes = {"small": 80, "medium": 120, "large": 180}
-    width = sizes.get(size, 120)
+    sizes = {"small": 100, "medium": 140, "large": 200}
+    width = sizes.get(size, 140)
     
     logo_html = f"""
     <div style='text-align: center; margin: 30px 0; padding: 20px;'>
         <img src='data:image/svg+xml;base64,{logo_base64}' width='{width}' 
-             style='border-radius: 50%; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); 
+             style='border-radius: 20px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); 
                     border: 4px solid rgba(102, 126, 234, 0.2); transition: transform 0.3s ease;'>
     </div>
     """
