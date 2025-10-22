@@ -305,6 +305,164 @@ def process_odds_data(odds_response: List[Dict]) -> Optional[Dict]:
     avg_home_odd, avg_draw_odd, avg_away_odd = sum(home_odds) / len(home_odds), sum(draw_odds) / len(draw_odds), sum(away_odds) / len(away_odds)
     return {'home': {'odd': avg_home_odd, 'prob': (1 / avg_home_odd) * 100}, 'draw': {'odd': avg_draw_odd, 'prob': (1 / avg_draw_odd) * 100}, 'away': {'odd': avg_away_odd, 'prob': (1 / avg_away_odd) * 100}}
 
+def process_detailed_odds(categorized_odds: Optional[Dict]) -> Dict[str, Any]:
+    """
+    Detaylı bahis oranlarını işler ve model ile karşılaştırılabilir formata getirir.
+    """
+    if not categorized_odds:
+        return {}
+    
+    processed = {
+        'over_under_2.5': None,
+        'btts': None,
+        'handicap': {},
+        'first_half_winner': None,
+        'first_half_over_1.5': None,
+        'corners_9.5': None,
+        'corners_10.5': None,
+        'cards_over_3.5': None,
+    }
+    
+    # 2.5 Üst/Alt işleme
+    if categorized_odds.get('over_under'):
+        for bet_data in categorized_odds['over_under']:
+            bet_name = bet_data.get('bet_name', '').lower()
+            if '2.5' in bet_name:
+                values = bet_data.get('values', [])
+                for val in values:
+                    label = val.get('value', '').lower()
+                    odd = float(val.get('odd', 0))
+                    if 'over' in label and odd > 0:
+                        if not processed['over_under_2.5']:
+                            processed['over_under_2.5'] = {}
+                        processed['over_under_2.5']['over'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+                    elif 'under' in label and odd > 0:
+                        if not processed['over_under_2.5']:
+                            processed['over_under_2.5'] = {}
+                        processed['over_under_2.5']['under'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+    
+    # BTTS işleme
+    if categorized_odds.get('btts'):
+        for bet_data in categorized_odds['btts']:
+            values = bet_data.get('values', [])
+            for val in values:
+                label = val.get('value', '').lower()
+                odd = float(val.get('odd', 0))
+                if 'yes' in label and odd > 0:
+                    if not processed['btts']:
+                        processed['btts'] = {}
+                    processed['btts']['yes'] = {
+                        'odd': odd,
+                        'prob': round((1/odd) * 100, 1)
+                    }
+                elif 'no' in label and odd > 0:
+                    if not processed['btts']:
+                        processed['btts'] = {}
+                    processed['btts']['no'] = {
+                        'odd': odd,
+                        'prob': round((1/odd) * 100, 1)
+                    }
+    
+    # Handikap işleme (Ev sahibi -0.5, -1.5, -2.5)
+    if categorized_odds.get('handicap'):
+        for bet_data in categorized_odds['handicap']:
+            bet_name = bet_data.get('bet_name', '').lower()
+            values = bet_data.get('values', [])
+            for val in values:
+                label = val.get('value', '')
+                odd = float(val.get('odd', 0))
+                if odd > 0:
+                    # Handikap değerini parse et (örn: "Home -0.5")
+                    if '-0.5' in label or '-0:1' in label:
+                        processed['handicap']['home_minus_0.5'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+                    elif '-1.5' in label or '-1:2' in label:
+                        processed['handicap']['home_minus_1.5'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+    
+    # İlk yarı winner işleme
+    if categorized_odds.get('first_half'):
+        for bet_data in categorized_odds['first_half']:
+            bet_name = bet_data.get('bet_name', '').lower()
+            if 'winner' in bet_name or '1x2' in bet_name:
+                values = bet_data.get('values', [])
+                for val in values:
+                    label = val.get('value', '').lower()
+                    odd = float(val.get('odd', 0))
+                    if 'home' in label and odd > 0:
+                        if not processed['first_half_winner']:
+                            processed['first_half_winner'] = {}
+                        processed['first_half_winner']['home'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+                    elif 'draw' in label and odd > 0:
+                        if not processed['first_half_winner']:
+                            processed['first_half_winner'] = {}
+                        processed['first_half_winner']['draw'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+                    elif 'away' in label and odd > 0:
+                        if not processed['first_half_winner']:
+                            processed['first_half_winner'] = {}
+                        processed['first_half_winner']['away'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+    
+    # Korner oranları
+    if categorized_odds.get('corners'):
+        for bet_data in categorized_odds['corners']:
+            bet_name = bet_data.get('bet_name', '').lower()
+            values = bet_data.get('values', [])
+            if '9.5' in bet_name or '10.5' in bet_name:
+                for val in values:
+                    label = val.get('value', '').lower()
+                    odd = float(val.get('odd', 0))
+                    if odd > 0:
+                        key = 'corners_9.5' if '9.5' in bet_name else 'corners_10.5'
+                        if not processed[key]:
+                            processed[key] = {}
+                        if 'over' in label:
+                            processed[key]['over'] = {
+                                'odd': odd,
+                                'prob': round((1/odd) * 100, 1)
+                            }
+                        elif 'under' in label:
+                            processed[key]['under'] = {
+                                'odd': odd,
+                                'prob': round((1/odd) * 100, 1)
+                            }
+    
+    # Kart oranları
+    if categorized_odds.get('cards'):
+        for bet_data in categorized_odds['cards']:
+            bet_name = bet_data.get('bet_name', '').lower()
+            if '3.5' in bet_name or '4.5' in bet_name:
+                values = bet_data.get('values', [])
+                for val in values:
+                    label = val.get('value', '').lower()
+                    odd = float(val.get('odd', 0))
+                    if odd > 0 and 'over' in label:
+                        processed['cards_over_3.5'] = {
+                            'odd': odd,
+                            'prob': round((1/odd) * 100, 1)
+                        }
+                        break
+    
+    return processed
+
 def calculate_odds_based_adjustment(odds_data: Optional[Dict], model_win_a: float, model_draw: float, model_win_b: float) -> Dict[str, float]:
     """Bahis oranlarını model tahminleriyle birleştir (70% model + 30% odds)"""
     if not odds_data:
@@ -385,6 +543,122 @@ def calculate_referee_factor(referee_stats: Optional[Dict]) -> float:
         return 1.04  # Yumuşak hakem, akıcı oyun
     
     return 1.0
+
+def calculate_corner_probabilities(home_corners_avg: float, away_corners_avg: float, league_avg_corners: float = 10.5) -> Dict[str, float]:
+    """
+    Korner tahminlerini hesaplar.
+    Args:
+        home_corners_avg: Ev sahibi takımın ortalama korner sayısı
+        away_corners_avg: Deplasman takımının ortalama korner sayısı
+        league_avg_corners: Lig ortalaması korner sayısı (varsayılan 10.5)
+    """
+    # Toplam beklenen korner
+    expected_total = (home_corners_avg + away_corners_avg) / 2
+    if expected_total == 0:
+        expected_total = league_avg_corners
+    
+    # Poisson dağılımı ile korner olasılıkları
+    over_8_5 = 0.0
+    over_9_5 = 0.0
+    over_10_5 = 0.0
+    over_11_5 = 0.0
+    
+    for total_corners in range(0, 25):  # 0-24 korner aralığı
+        prob = poisson_pmf(expected_total, total_corners)
+        if total_corners > 8:
+            over_8_5 += prob
+        if total_corners > 9:
+            over_9_5 += prob
+        if total_corners > 10:
+            over_10_5 += prob
+        if total_corners > 11:
+            over_11_5 += prob
+    
+    return {
+        'expected_corners': round(expected_total, 1),
+        'over_8.5': round(over_8_5 * 100, 1),
+        'under_8.5': round((1 - over_8_5) * 100, 1),
+        'over_9.5': round(over_9_5 * 100, 1),
+        'under_9.5': round((1 - over_9_5) * 100, 1),
+        'over_10.5': round(over_10_5 * 100, 1),
+        'under_10.5': round((1 - over_10_5) * 100, 1),
+        'over_11.5': round(over_11_5 * 100, 1),
+        'under_11.5': round((1 - over_11_5) * 100, 1),
+    }
+
+def calculate_card_probabilities(referee_yellow_avg: float, referee_red_avg: float, team_a_cards_avg: float = 0, team_b_cards_avg: float = 0) -> Dict[str, float]:
+    """
+    Kart tahminlerini hesaplar.
+    Args:
+        referee_yellow_avg: Hakemin maç başına ortalama sarı kart sayısı
+        referee_red_avg: Hakemin maç başına ortalama kırmızı kart sayısı
+        team_a_cards_avg: Ev sahibinin ortalama kart sayısı (opsiyonel)
+        team_b_cards_avg: Deplasmanın ortalama kart sayısı (opsiyonel)
+    """
+    # Beklenen toplam sarı kart (hakem + takım ortalaması)
+    expected_yellow = referee_yellow_avg if referee_yellow_avg > 0 else 4.0
+    if team_a_cards_avg > 0 and team_b_cards_avg > 0:
+        expected_yellow = (expected_yellow + team_a_cards_avg + team_b_cards_avg) / 3
+    
+    # Beklenen kırmızı kart
+    expected_red = referee_red_avg if referee_red_avg > 0 else 0.15
+    
+    # Sarı kart tahminleri
+    over_3_5_yellow = 0.0
+    over_4_5_yellow = 0.0
+    over_5_5_yellow = 0.0
+    
+    for yellow_count in range(0, 15):
+        prob = poisson_pmf(expected_yellow, yellow_count)
+        if yellow_count > 3:
+            over_3_5_yellow += prob
+        if yellow_count > 4:
+            over_4_5_yellow += prob
+        if yellow_count > 5:
+            over_5_5_yellow += prob
+    
+    # Kırmızı kart olasılığı (en az 1 kırmızı kart)
+    red_card_yes = 1 - poisson_pmf(expected_red, 0)
+    
+    return {
+        'expected_yellow_cards': round(expected_yellow, 1),
+        'expected_red_cards': round(expected_red, 2),
+        'over_3.5_yellow': round(over_3_5_yellow * 100, 1),
+        'under_3.5_yellow': round((1 - over_3_5_yellow) * 100, 1),
+        'over_4.5_yellow': round(over_4_5_yellow * 100, 1),
+        'under_4.5_yellow': round((1 - over_4_5_yellow) * 100, 1),
+        'over_5.5_yellow': round(over_5_5_yellow * 100, 1),
+        'under_5.5_yellow': round((1 - over_5_5_yellow) * 100, 1),
+        'red_card_yes': round(red_card_yes * 100, 1),
+        'red_card_no': round((1 - red_card_yes) * 100, 1),
+    }
+
+def calculate_first_half_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
+    """
+    İlk yarı 1X2 tahminlerini hesaplar.
+    İlk yarıda genelde maç genelinin %40-45'i kadar gol atılır.
+    """
+    # İlk yarı lambdaları
+    s_a_ht = s_a * 0.42
+    s_b_ht = s_b * 0.42
+    
+    accum_ht = {'win_a': 0.0, 'draw': 0.0}
+    
+    for i in range(6):  # İlk yarı 0-5 gol aralığı
+        for j in range(6):
+            prob = poisson_pmf(s_a_ht, i) * poisson_pmf(s_b_ht, j)
+            if i > j:
+                accum_ht['win_a'] += prob
+            elif i == j:
+                accum_ht['draw'] += prob
+    
+    win_b_ht = max(0.0, 1.0 - accum_ht['win_a'] - accum_ht['draw'])
+    
+    return {
+        'ilk_yari_ev_kazanir': round(accum_ht['win_a'] * 100, 1),
+        'ilk_yari_beraberlik': round(accum_ht['draw'] * 100, 1),
+        'ilk_yari_dep_kazanir': round(win_b_ht * 100, 1),
+    }
 
 def calculate_rest_days_factor(last_matches: Optional[List[Dict]]) -> float:
     """Son maçtan bu yana geçen günlere göre dinlenme faktörü"""
@@ -560,7 +834,12 @@ def poisson_pmf(l, k):
 
 def calculate_match_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
     limits = range(11)
-    accum = {'over': 0.0, 'btts': 0.0, 'win_a': 0.0, 'draw': 0.0}
+    accum = {'over': 0.0, 'btts': 0.0, 'win_a': 0.0, 'draw': 0.0, 'over_ht': 0.0, 'handicap_home_minus_0_5': 0.0, 'handicap_home_minus_1_5': 0.0, 'handicap_home_minus_2_5': 0.0}
+    
+    # İlk yarı lambdaları (genelde 40-45% civarı)
+    s_a_ht = s_a * 0.42
+    s_b_ht = s_b * 0.42
+    
     for i in limits:
         for j in limits:
             prob = poisson_pmf(s_a, i) * poisson_pmf(s_b, j)
@@ -570,6 +849,20 @@ def calculate_match_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
                 accum['win_a'] += prob
             elif i == j:
                 accum['draw'] += prob
+            
+            # Handikap hesaplamaları (ev sahibi -0.5, -1.5, -2.5)
+            if (i - j) > 0.5:  # Ev sahibi en az 1 farkla kazanırsa
+                accum['handicap_home_minus_0_5'] += prob
+            if (i - j) > 1.5:  # Ev sahibi en az 2 farkla kazanırsa
+                accum['handicap_home_minus_1_5'] += prob
+            if (i - j) > 2.5:  # Ev sahibi en az 3 farkla kazanırsa
+                accum['handicap_home_minus_2_5'] += prob
+    
+    # İlk yarı 1.5 üst hesaplama
+    for i in range(6):  # İlk yarı için 0-5 gol aralığı
+        for j in range(6):
+            prob_ht = poisson_pmf(s_a_ht, i) * poisson_pmf(s_b_ht, j)
+            accum['over_ht'] += prob_ht if (i + j) > 1 else 0.0
 
     win_b = max(0.0, 1.0 - accum['win_a'] - accum['draw'])
     prob_dict = {
@@ -580,6 +873,15 @@ def calculate_match_probabilities(s_a: float, s_b: float) -> Dict[str, float]:
         'win_a': round(accum['win_a'] * 100, 1),
         'win_b': round(win_b * 100, 1),
         'draw': round(accum['draw'] * 100, 1),
+        # Yeni tahminler
+        'ilk_yari_1.5_ust': round(accum['over_ht'] * 100, 1),
+        'ilk_yari_1.5_alt': round((1 - accum['over_ht']) * 100, 1),
+        'handicap_ev_minus_0.5': round(accum['handicap_home_minus_0_5'] * 100, 1),
+        'handicap_ev_minus_1.5': round(accum['handicap_home_minus_1_5'] * 100, 1),
+        'handicap_ev_minus_2.5': round(accum['handicap_home_minus_2_5'] * 100, 1),
+        'handicap_dep_plus_0.5': round((1 - accum['handicap_home_minus_0_5']) * 100, 1),
+        'handicap_dep_plus_1.5': round((1 - accum['handicap_home_minus_1_5']) * 100, 1),
+        'handicap_dep_plus_2.5': round((1 - accum['handicap_home_minus_2_5']) * 100, 1),
     }
     return prob_dict
 
@@ -973,6 +1275,25 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
     confidence = round(min(100.0, max(5.0, diff * max(0.4, confidence_multiplier))), 1)
 
     pace_index = (home_att + away_att) / max(0.2, avg_home_goals + avg_away_goals)
+    
+    # 🆕 KORNER TAHMİNLERİ
+    # Takımların korner istatistiklerini al (varsa)
+    home_corners_avg = 5.0  # Varsayılan
+    away_corners_avg = 5.0  # Varsayılan
+    
+    # Basit hesaplama: Hücum gücü yüksek takımlar daha fazla korner kazanır
+    home_corners_avg = 4.0 + (home_attack_idx * 2.5)
+    away_corners_avg = 4.0 + (away_attack_idx * 2.5)
+    
+    corner_probs = calculate_corner_probabilities(home_corners_avg, away_corners_avg)
+    
+    # 🆕 KART TAHMİNLERİ
+    referee_yellow_avg = referee_stats_processed.get('yellow_per_game', 4.0) if referee_stats_processed else 4.0
+    referee_red_avg = referee_stats_processed.get('red_per_game', 0.15) if referee_stats_processed else 0.15
+    card_probs = calculate_card_probabilities(referee_yellow_avg, referee_red_avg)
+    
+    # 🆕 İLK YARI 1X2 TAHMİNLERİ
+    first_half_probs = calculate_first_half_probabilities(score_a, score_b)
 
     analysis_result = {
         'score_a': score_a,
@@ -980,6 +1301,9 @@ def run_core_analysis(api_key, base_url, id_a, id_b, name_a, name_b, fixture_id,
         'expected_total': round(lambda_a + lambda_b, 2),
         'goal_spread': round(lambda_a - lambda_b, 2),
         'probs': probs,
+        'corner_probs': corner_probs,
+        'card_probs': card_probs,
+        'first_half_probs': first_half_probs,
         'confidence': confidence,
         'diff': diff,
         'params': {

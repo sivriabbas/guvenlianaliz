@@ -521,8 +521,96 @@ def get_team_last_matches_stats(api_key: str, base_url: str, team_id: int, limit
 
 @st.cache_data(ttl=3600)
 def get_fixture_odds(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """1X2 oranlarını (Match Winner) çeker"""
     params = {'fixture': fixture_id, 'bet': 1}
     return make_api_request(api_key, base_url, "odds", params)
+
+@st.cache_data(ttl=3600)
+def get_fixture_detailed_odds(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Tüm bahis türlerini çeker ve kategorize eder.
+    Returns: {
+        'match_winner': [...],  # 1X2
+        'over_under': [...],    # 2.5 Üst/Alt
+        'btts': [...],          # Karşılıklı Gol
+        'handicap': [...],      # Handikap
+        'first_half': [...],    # İlk Yarı
+        'corners': [...],       # Kornerler
+        'cards': [...]          # Kartlar
+    }
+    """
+    # Tüm bahis türlerini çek (bet parametresi olmadan)
+    params = {'fixture': fixture_id}
+    response, error = make_api_request(api_key, base_url, "odds", params)
+    
+    if error or not response:
+        return None, error
+    
+    categorized_odds = {
+        'match_winner': [],
+        'over_under': [],
+        'btts': [],
+        'handicap': [],
+        'first_half': [],
+        'corners': [],
+        'cards': []
+    }
+    
+    try:
+        bookmakers = response[0].get('bookmakers', [])
+        
+        for bookmaker in bookmakers:
+            bets = bookmaker.get('bets', [])
+            
+            for bet in bets:
+                bet_name = bet.get('name', '').lower()
+                
+                # Kategorizasyon
+                if 'match winner' in bet_name or 'winner' in bet_name:
+                    categorized_odds['match_winner'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'values': bet.get('values', [])
+                    })
+                elif 'over/under' in bet_name or 'goals' in bet_name:
+                    categorized_odds['over_under'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
+                        'values': bet.get('values', [])
+                    })
+                elif 'both teams score' in bet_name or 'btts' in bet_name:
+                    categorized_odds['btts'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'values': bet.get('values', [])
+                    })
+                elif 'handicap' in bet_name or 'spread' in bet_name:
+                    categorized_odds['handicap'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
+                        'values': bet.get('values', [])
+                    })
+                elif '1st half' in bet_name or 'first half' in bet_name or 'half time' in bet_name:
+                    categorized_odds['first_half'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
+                        'values': bet.get('values', [])
+                    })
+                elif 'corner' in bet_name:
+                    categorized_odds['corners'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
+                        'values': bet.get('values', [])
+                    })
+                elif 'card' in bet_name or 'yellow' in bet_name or 'booking' in bet_name:
+                    categorized_odds['cards'].append({
+                        'bookmaker': bookmaker.get('name'),
+                        'bet_name': bet.get('name'),
+                        'values': bet.get('values', [])
+                    })
+        
+        return categorized_odds, None
+    
+    except (KeyError, IndexError, TypeError) as e:
+        return None, f"Oran verisi işlenirken hata: {str(e)}"
 
 @st.cache_data(ttl=86400) 
 def get_fixture_injuries(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:

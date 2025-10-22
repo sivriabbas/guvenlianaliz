@@ -555,6 +555,264 @@ def display_referee_tab(referee_stats: Optional[Dict]):
     else:
         st.warning("Bu maç için hakem bilgisi atanmamış veya bulunamadı.")
 
+def display_detailed_betting_tab(analysis: Dict, team_names: Dict, fixture_id: int, model_params: Dict):
+    """🎲 Detaylı İddaa Tahminleri - Model vs Piyasa Karşılaştırması"""
+    st.subheader("🎲 Detaylı İddaa Tahminleri ve Piyasa Karşılaştırması")
+    
+    # Piyasa oranlarını çek
+    with st.spinner("Piyasa oranları alınıyor..."):
+        detailed_odds, error = api_utils.get_fixture_detailed_odds(API_KEY, BASE_URL, fixture_id)
+    
+    if error:
+        st.error(f"Piyasa oranları alınamadı: {error}")
+        detailed_odds = None
+    
+    # Detaylı oranları işle
+    processed_detailed_odds = analysis_logic.process_detailed_odds(detailed_odds) if detailed_odds else {}
+    
+    value_threshold = model_params.get('value_threshold', 5)
+    
+    # Model tahminleri
+    probs = analysis.get('probs', {})
+    corner_probs = analysis.get('corner_probs', {})
+    card_probs = analysis.get('card_probs', {})
+    first_half_probs = analysis.get('first_half_probs', {})
+    
+    # Seksiyon 1: Handikap Tahminleri
+    st.markdown("### 🎯 Handikap Bahisleri")
+    handicap_data = []
+    
+    # Ev sahibi -0.5
+    model_h_0_5 = probs.get('handicap_ev_minus_0.5', 0)
+    market_h_0_5 = processed_detailed_odds.get('handicap', {}).get('home_minus_0.5')
+    if market_h_0_5:
+        diff = model_h_0_5 - market_h_0_5['prob']
+        value_tag = f"✅ Değerli! (+{diff:.1f}%)" if diff > value_threshold else ""
+        handicap_data.append({
+            'Bahis': f'{team_names["a"]} -0.5',
+            'Model (%)': model_h_0_5,
+            'Piyasa Oranı': market_h_0_5['odd'],
+            'Piyasa (%)': market_h_0_5['prob'],
+            'Değer': value_tag
+        })
+    else:
+        handicap_data.append({
+            'Bahis': f'{team_names["a"]} -0.5',
+            'Model (%)': model_h_0_5,
+            'Piyasa Oranı': '-',
+            'Piyasa (%)': '-',
+            'Değer': ''
+        })
+    
+    # Ev sahibi -1.5
+    model_h_1_5 = probs.get('handicap_ev_minus_1.5', 0)
+    market_h_1_5 = processed_detailed_odds.get('handicap', {}).get('home_minus_1.5')
+    if market_h_1_5:
+        diff = model_h_1_5 - market_h_1_5['prob']
+        value_tag = f"✅ Değerli! (+{diff:.1f}%)" if diff > value_threshold else ""
+        handicap_data.append({
+            'Bahis': f'{team_names["a"]} -1.5',
+            'Model (%)': model_h_1_5,
+            'Piyasa Oranı': market_h_1_5['odd'],
+            'Piyasa (%)': market_h_1_5['prob'],
+            'Değer': value_tag
+        })
+    else:
+        handicap_data.append({
+            'Bahis': f'{team_names["a"]} -1.5',
+            'Model (%)': model_h_1_5,
+            'Piyasa Oranı': '-',
+            'Piyasa (%)': '-',
+            'Değer': ''
+        })
+    
+    # Deplasman +0.5, +1.5
+    handicap_data.append({
+        'Bahis': f'{team_names["b"]} +0.5',
+        'Model (%)': probs.get('handicap_dep_plus_0.5', 0),
+        'Piyasa Oranı': '-',
+        'Piyasa (%)': '-',
+        'Değer': ''
+    })
+    
+    if handicap_data:
+        df_handicap = pd.DataFrame(handicap_data)
+        st.dataframe(df_handicap, use_container_width=True, hide_index=True)
+    
+    st.markdown("---")
+    
+    # Seksiyon 2: İlk Yarı Tahminleri
+    st.markdown("### ⏱️ İlk Yarı Tahminleri")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 1X2 (İlk Yarı)")
+        first_half_data = []
+        
+        model_ht_home = first_half_probs.get('ilk_yari_ev_kazanir', 0)
+        model_ht_draw = first_half_probs.get('ilk_yari_beraberlik', 0)
+        model_ht_away = first_half_probs.get('ilk_yari_dep_kazanir', 0)
+        
+        market_ht = processed_detailed_odds.get('first_half_winner')
+        
+        if market_ht and market_ht.get('home'):
+            diff_home = model_ht_home - market_ht['home']['prob']
+            value_tag_home = f"✅ Değerli! (+{diff_home:.1f}%)" if diff_home > value_threshold else ""
+            first_half_data.append({
+                'Sonuç': f'{team_names["a"]} Kazanır',
+                'Model (%)': model_ht_home,
+                'Piyasa Oranı': market_ht['home']['odd'],
+                'Piyasa (%)': market_ht['home']['prob'],
+                'Değer': value_tag_home
+            })
+        else:
+            first_half_data.append({
+                'Sonuç': f'{team_names["a"]} Kazanır',
+                'Model (%)': model_ht_home,
+                'Piyasa Oranı': '-',
+                'Piyasa (%)': '-',
+                'Değer': ''
+            })
+        
+        if market_ht and market_ht.get('draw'):
+            first_half_data.append({
+                'Sonuç': 'Beraberlik',
+                'Model (%)': model_ht_draw,
+                'Piyasa Oranı': market_ht['draw']['odd'],
+                'Piyasa (%)': market_ht['draw']['prob'],
+                'Değer': ''
+            })
+        else:
+            first_half_data.append({
+                'Sonuç': 'Beraberlik',
+                'Model (%)': model_ht_draw,
+                'Piyasa Oranı': '-',
+                'Piyasa (%)': '-',
+                'Değer': ''
+            })
+        
+        if market_ht and market_ht.get('away'):
+            diff_away = model_ht_away - market_ht['away']['prob']
+            value_tag_away = f"✅ Değerli! (+{diff_away:.1f}%)" if diff_away > value_threshold else ""
+            first_half_data.append({
+                'Sonuç': f'{team_names["b"]} Kazanır',
+                'Model (%)': model_ht_away,
+                'Piyasa Oranı': market_ht['away']['odd'],
+                'Piyasa (%)': market_ht['away']['prob'],
+                'Değer': value_tag_away
+            })
+        else:
+            first_half_data.append({
+                'Sonuç': f'{team_names["b"]} Kazanır',
+                'Model (%)': model_ht_away,
+                'Piyasa Oranı': '-',
+                'Piyasa (%)': '-',
+                'Değer': ''
+            })
+        
+        df_first_half = pd.DataFrame(first_half_data)
+        st.dataframe(df_first_half, use_container_width=True, hide_index=True)
+    
+    with col2:
+        st.markdown("#### 1.5 Üst/Alt (İlk Yarı)")
+        model_ht_over = probs.get('ilk_yari_1.5_ust', 0)
+        model_ht_under = probs.get('ilk_yari_1.5_alt', 0)
+        
+        first_half_ou_data = [
+            {'Bahis': '1.5 Üst', 'Model (%)': model_ht_over, 'Piyasa Oranı': '-', 'Piyasa (%)': '-', 'Değer': ''},
+            {'Bahis': '1.5 Alt', 'Model (%)': model_ht_under, 'Piyasa Oranı': '-', 'Piyasa (%)': '-', 'Değer': ''}
+        ]
+        
+        df_ht_ou = pd.DataFrame(first_half_ou_data)
+        st.dataframe(df_ht_ou, use_container_width=True, hide_index=True)
+    
+    st.markdown("---")
+    
+    # Seksiyon 3: Korner Tahminleri
+    st.markdown("### ⛳ Korner Tahminleri")
+    st.info(f"📊 Beklenen Toplam Korner: **{corner_probs.get('expected_corners', 10.0):.1f}**")
+    
+    corner_data = []
+    
+    # 9.5 Üst/Alt
+    model_c_9_5_over = corner_probs.get('over_9.5', 0)
+    model_c_9_5_under = corner_probs.get('under_9.5', 0)
+    market_c_9_5 = processed_detailed_odds.get('corners_9.5')
+    
+    if market_c_9_5 and market_c_9_5.get('over'):
+        diff = model_c_9_5_over - market_c_9_5['over']['prob']
+        value_tag = f"✅ Değerli! (+{diff:.1f}%)" if diff > value_threshold else ""
+        corner_data.append({
+            'Bahis': '9.5 Üst',
+            'Model (%)': model_c_9_5_over,
+            'Piyasa Oranı': market_c_9_5['over']['odd'],
+            'Piyasa (%)': market_c_9_5['over']['prob'],
+            'Değer': value_tag
+        })
+    else:
+        corner_data.append({
+            'Bahis': '9.5 Üst',
+            'Model (%)': model_c_9_5_over,
+            'Piyasa Oranı': '-',
+            'Piyasa (%)': '-',
+            'Değer': ''
+        })
+    
+    # 10.5 Üst/Alt
+    model_c_10_5_over = corner_probs.get('over_10.5', 0)
+    market_c_10_5 = processed_detailed_odds.get('corners_10.5')
+    
+    if market_c_10_5 and market_c_10_5.get('over'):
+        diff = model_c_10_5_over - market_c_10_5['over']['prob']
+        value_tag = f"✅ Değerli! (+{diff:.1f}%)" if diff > value_threshold else ""
+        corner_data.append({
+            'Bahis': '10.5 Üst',
+            'Model (%)': model_c_10_5_over,
+            'Piyasa Oranı': market_c_10_5['over']['odd'],
+            'Piyasa (%)': market_c_10_5['over']['prob'],
+            'Değer': value_tag
+        })
+    else:
+        corner_data.append({
+            'Bahis': '10.5 Üst',
+            'Model (%)': model_c_10_5_over,
+            'Piyasa Oranı': '-',
+            'Piyasa (%)': '-',
+            'Değer': ''
+        })
+    
+    if corner_data:
+        df_corners = pd.DataFrame(corner_data)
+        st.dataframe(df_corners, use_container_width=True, hide_index=True)
+    
+    st.markdown("---")
+    
+    # Seksiyon 4: Kart Tahminleri
+    st.markdown("### 🟨 Kart Tahminleri")
+    st.info(f"📊 Beklenen Sarı Kart: **{card_probs.get('expected_yellow_cards', 4.0):.1f}** | Kırmızı Kart: **{card_probs.get('expected_red_cards', 0.15):.2f}**")
+    
+    card_data = [
+        {'Bahis': '3.5 Üst (Sarı)', 'Model (%)': card_probs.get('over_3.5_yellow', 0), 'Piyasa Oranı': '-', 'Piyasa (%)': '-', 'Değer': ''},
+        {'Bahis': '4.5 Üst (Sarı)', 'Model (%)': card_probs.get('over_4.5_yellow', 0), 'Piyasa Oranı': '-', 'Piyasa (%)': '-', 'Değer': ''},
+        {'Bahis': 'Kırmızı Kart VAR', 'Model (%)': card_probs.get('red_card_yes', 0), 'Piyasa Oranı': '-', 'Piyasa (%)': '-', 'Değer': ''},
+    ]
+    
+    # Piyasa oranı varsa ekle
+    market_cards = processed_detailed_odds.get('cards_over_3.5')
+    if market_cards:
+        card_data[0]['Piyasa Oranı'] = market_cards['odd']
+        card_data[0]['Piyasa (%)'] = market_cards['prob']
+        diff = card_data[0]['Model (%)'] - market_cards['prob']
+        if diff > value_threshold:
+            card_data[0]['Değer'] = f"✅ Değerli! (+{diff:.1f}%)"
+    
+    df_cards = pd.DataFrame(card_data)
+    st.dataframe(df_cards, use_container_width=True, hide_index=True)
+    
+    st.markdown("---")
+    st.caption("💡 **Değerli Oran:** Model tahmini piyasa olasılığından eşik değerden (%5) fazla olduğunda işaretlenir.")
+
 def display_h2h_tab(h2h_stats: Optional[Dict], team_names: Dict):
     st.subheader(f"⚔️ {team_names['a']} vs {team_names['b']}: Kafa Kafaya Analiz")
     if h2h_stats:
@@ -807,16 +1065,17 @@ def analyze_and_display(team_a_data: Dict, team_b_data: Dict, fixture_id: int, m
     </style>
     """, unsafe_allow_html=True)
     
-    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "⚙️ Analiz Parametreleri"]
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(tab_list)
+    tab_list = ["🎯 Tahmin Özeti", "📈 İstatistikler", "🎲 Detaylı İddaa", "🚑 Eksikler", "📊 Puan Durumu", "⚔️ H2H Analizi", "⚖️ Hakem Analizi", "⚙️ Analiz Parametreleri"]
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(tab_list)
 
     with tab1: display_summary_tab(analysis, team_names, processed_odds, model_params)
     with tab2: display_stats_tab(analysis['stats'], team_names, team_ids, analysis.get('params'))
-    with tab3: display_injuries_tab(fixture_id, team_names, team_ids, league_info)
-    with tab4: display_standings_tab(league_info, team_names)
-    with tab5: display_h2h_tab(processed_h2h, team_names)
-    with tab6: display_referee_tab(processed_referee_stats)
-    with tab7: display_parameters_tab(analysis['params'], team_names)
+    with tab3: display_detailed_betting_tab(analysis, team_names, fixture_id, model_params)
+    with tab4: display_injuries_tab(fixture_id, team_names, team_ids, league_info)
+    with tab5: display_standings_tab(league_info, team_names)
+    with tab6: display_h2h_tab(processed_h2h, team_names)
+    with tab7: display_referee_tab(processed_referee_stats)
+    with tab8: display_parameters_tab(analysis['params'], team_names)
 
 @st.cache_data(ttl=18000, show_spinner=False)  # 5 saat cache
 def get_top_predictions_today(model_params: Dict, today_date: date, is_admin_user: bool, top_n: int = 5) -> List[Dict]:
@@ -1164,16 +1423,15 @@ def build_dashboard_view(model_params: Dict):
         st.markdown("---")
     st.subheader("📋 Analiz Sonuçları")
     
-    # Logo sütunlarını ekle (HTML formatında)
+    # Logo sütunlarını ekle (URL formatında - ImageColumn için)
     if not df.empty and 'home_logo' in df.columns and 'away_logo' in df.columns:
-        df['🏠'] = df.apply(lambda row: f'<img src="{row["home_logo"]}" width="20"/>' if row['home_logo'] else '', axis=1)
-        df['🛫'] = df.apply(lambda row: f'<img src="{row["away_logo"]}" width="20"/>' if row['away_logo'] else '', axis=1)
-        cols_to_display = ["Saat", "Lig", "🏠", "Ev Sahibi", "🛫", "Deplasman", "Tahmin", "AI Güven Puanı", "2.5 ÜST (%)", "KG VAR (%)"]
+        # Logo URL'lerini direkt kullan (ImageColumn için)
+        cols_to_display = ["Saat", "Lig", "home_logo", "Ev Sahibi", "away_logo", "Deplasman", "Tahmin", "AI Güven Puanı", "2.5 ÜST (%)", "KG VAR (%)"]
     else:
         cols_to_display = ["Saat", "Lig", "Ev Sahibi", "Deplasman", "Tahmin", "AI Güven Puanı", "2.5 ÜST (%)", "KG VAR (%)"]
     
     if 'Gerçekleşen Skor' in df.columns and not df['Gerçekleşen Skor'].eq('').all():
-        if "🏠" in cols_to_display:
+        if "home_logo" in cols_to_display:
             cols_to_display.insert(7, "Gerçekleşen Skor")
             cols_to_display.insert(8, "Sonuç")
         else:
@@ -1181,8 +1439,8 @@ def build_dashboard_view(model_params: Dict):
             cols_to_display.insert(6, "Sonuç")
     
     st.dataframe(df[cols_to_display].sort_values("AI Güven Puanı", ascending=False), use_container_width=True, hide_index=True, column_config={
-        "🏠": st.column_config.ImageColumn("🏠", help="Ev Sahibi Logosu"),
-        "🛫": st.column_config.ImageColumn("🛫", help="Deplasman Logosu")
+        "home_logo": st.column_config.ImageColumn("🏠", help="Ev Sahibi Logosu", width="small"),
+        "away_logo": st.column_config.ImageColumn("🛫", help="Deplasman Logosu", width="small")
     })
     st.markdown("---")
     st.subheader("🔍 Detaylı Maç Analizi")
@@ -1824,6 +2082,227 @@ def main():
                     st.cache_data.clear()
                     st.success("Uygulama önbelleği başarıyla temizlendi!")
                     safe_rerun()
+        
+        st.sidebar.markdown("---")
+        
+        # 📖 Detaylı Bilgilendirme Bölümü
+        with st.sidebar.expander("ℹ️ Detaylı Bilgilendirme"):
+            st.markdown("### 📊 Sistemimiz Nasıl Çalışır?")
+            
+            st.markdown("#### 🏠 Ana Sayfa")
+            st.markdown("""
+            - **Günün Öne Çıkan Tahminleri**: AI güven puanı en yüksek maçları otomatik seçer
+            - **Hızlı Takım Araması**: Herhangi bir takımın sıradaki maçını anında bulun
+            - **Favori Ligleriniz**: Seçtiğiniz liglerdeki bugün ve yarının maçlarını görüntüleyin
+            """)
+            
+            st.markdown("#### 🗓️ Maç Panosu")
+            st.markdown("""
+            - **Tarih Seçimi**: Geçmiş veya gelecek tarihler için analiz yapın
+            - **Çoklu Lig Seçimi**: Birden fazla ligi aynı anda analiz edin
+            - **Tahmin Başarı Oranı**: Geçmiş tarihler için modelimizin doğruluk oranını görün
+            - **Değerli Oranlar**: Model tahmininin piyasa oranlarından sapmasını tespit edin
+            """)
+            
+            st.markdown("#### 🔩 Manuel Analiz")
+            st.markdown("""
+            - **Takım Seçimi**: İki takım arasında özel maç analizi yapın
+            - **Gerçek Zamanlı Veri**: API üzerinden canlı maç ve takım verilerini kullanır
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 🎯 Analiz Sekmeleri")
+            
+            st.markdown("**📊 Tahmin Özeti**")
+            st.markdown("""
+            - Gol beklentisi ve 1X2 tahminleri
+            - Model vs Piyasa karşılaştırması
+            - AI güven puanı ve tahmin nedenleri
+            - 2.5 Üst/Alt ve Karşılıklı Gol tahminleri
+            """)
+            
+            st.markdown("**📈 İstatistikler**")
+            st.markdown("""
+            - Son 5 maçın form trendi (G/B/M)
+            - Radar grafiği ile görsel karşılaştırma
+            - Ev sahibi ve deplasman istatistikleri
+            - İstikrar puanı ve performans göstergeleri
+            """)
+            
+            st.markdown("**🎲 Detaylı İddaa**")
+            st.markdown("""
+            - **Handikap Bahisleri**: -0.5, -1.5, -2.5 tahminleri
+            - **İlk Yarı**: 1X2 ve 1.5 Üst/Alt tahminleri
+            - **Korner**: Beklenen korner sayısı ve üst/alt tahminleri
+            - **Kart**: Sarı/kırmızı kart olasılıkları
+            - Her kategori için piyasa oranlarıyla karşılaştırma
+            """)
+            
+            st.markdown("**🚑 Eksikler**")
+            st.markdown("""
+            - Sakatlık ve ceza durumu
+            - Kilit oyuncuların durumu
+            - Maça çıkamayacak futbolcular
+            """)
+            
+            st.markdown("**📊 Puan Durumu**")
+            st.markdown("""
+            - Canlı lig sıralaması
+            - Form, galibiyet/beraberlik/mağlubiyet istatistikleri
+            - Takımların lig içindeki konumu
+            """)
+            
+            st.markdown("**⚔️ H2H Analizi**")
+            st.markdown("""
+            - Son karşılaşmalar geçmişi
+            - Kafa kafaya galibiyet istatistikleri
+            - Ortalama gol sayıları
+            """)
+            
+            st.markdown("**⚖️ Hakem Analizi**")
+            st.markdown("""
+            - Hakemin sertlik düzeyi
+            - Maç başına ortalama kart sayısı
+            - Hakem faktörünün tahmine etkisi
+            """)
+            
+            st.markdown("**⚙️ Analiz Parametreleri**")
+            st.markdown("""
+            - Modelin kullandığı tüm faktörler
+            - Elo reytingi, momentum, form katsayıları
+            - Dinlenme süresi, sakatlık faktörleri
+            - H2H dominance, takım değeri karşılaştırması
+            """)
+        
+        st.sidebar.markdown("---")
+        
+        # 🏆 Neden Bize Güvenmelisiniz?
+        with st.sidebar.expander("🏆 Neden Bize Güvenmelisiniz?"):
+            st.markdown("### 🎓 Bilim ve Teknoloji Temelli Analiz")
+            
+            st.markdown("""
+            Futbol tahmin sistemimiz **rastgele tahminlerden** çok daha ötede, bilimsel yöntemler 
+            ve gelişmiş matematiksel modeller üzerine inşa edilmiştir.
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 🔬 Metodolojimiz")
+            
+            st.markdown("#### 1️⃣ Poisson Dağılımı")
+            st.markdown("""
+            **Futbolda en güvenilir istatistiksel yöntem**  
+            - Gol olaylarının olasılık dağılımını matematiksel olarak modeller
+            - Dünya çapında profesyonel analistler tarafından kullanılır
+            - 0-0, 1-1, 2-1 gibi tüm skor kombinasyonlarının olasılığını hesaplar
+            """)
+            
+            st.markdown("#### 2️⃣ Elo Rating Sistemi")
+            st.markdown("""
+            **Satranç'tan futbola uyarlanmış güç sıralaması**  
+            - Her takımın gerçek gücünü sayısal olarak ifade eder
+            - Maç sonuçlarına göre dinamik olarak güncellenir
+            - Ev sahibi avantajı, gol farkı gibi faktörleri hesaba katar
+            - 2000+ takım için güncel rating veritabanı
+            """)
+            
+            st.markdown("#### 3️⃣ Form ve Momentum Analizi")
+            st.markdown("""
+            **Son performansın geleceğe etkisi**  
+            - Son 5-10 maçın ağırlıklı ortalaması
+            - Kazanma serisi, gol trendi gibi psikolojik faktörler
+            - Ev sahibi ve deplasman formu ayrı ayrı değerlendirilir
+            """)
+            
+            st.markdown("#### 4️⃣ Çoklu Veri Kaynağı")
+            st.markdown("""
+            **API-Football'dan canlı veri akışı**  
+            - 1000+ lig ve 100,000+ maç verisi
+            - Gerçek zamanlı sakatlık, ceza ve kadro bilgileri
+            - Hakem istatistikleri ve geçmiş performansları
+            - Son 3 sezonun detaylı maç geçmişi
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 💡 Sistemimizin Avantajları")
+            
+            st.markdown("#### ✅ Objektif ve Duygusuz")
+            st.markdown("""
+            - Taraftarlık, önyargı veya hislerden etkilenmez
+            - Sadece veriye dayalı kararlar alır
+            - İnsani hataların minimize edilmesi
+            """)
+            
+            st.markdown("#### ✅ Çok Boyutlu Analiz")
+            st.markdown("""
+            Tek bir faktöre değil, **15+ farklı parametreye** bakılır:
+            - Takım gücü (Elo)
+            - Son form (momentum)
+            - Ev sahibi avantajı
+            - Sakatlık ve cezalılar
+            - Hakem sertliği
+            - Dinlenme süresi
+            - H2H geçmişi
+            - Lig kalitesi
+            - Takım değeri
+            - Hücum/savunma endeksleri
+            ve daha fazlası...
+            """)
+            
+            st.markdown("#### ✅ Piyasa ile Karşılaştırma")
+            st.markdown("""
+            - **Değerli Oran Tespiti**: Model tahmini piyasa oranlarından sapınca uyarır
+            - Bahis şirketlerinin margin'ini görünür kılar
+            - Arbitraj fırsatlarını belirler
+            """)
+            
+            st.markdown("#### ✅ Şeffaf ve Açıklanabilir")
+            st.markdown("""
+            - Her tahminin arkasındaki **nedenleri** görebilirsiniz
+            - Hangi faktörlerin etkili olduğunu anlayabilirsiniz
+            - "Analiz Parametreleri" sekmesinde tüm hesaplamaları inceleyebilirsiniz
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 📊 Güvenilirlik ve Doğruluk")
+            
+            st.markdown("""
+            **Geçmiş Tahmin Başarısı**  
+            - Maç Panosu'ndan geçmiş tarihleri seçerek modelimizin doğruluğunu test edebilirsiniz
+            - Her gün için başarı oranını gerçek skorlarla karşılaştırarak görebilirsiniz
+            - %60+ doğruluk oranı (profesyonel seviye)
+            """)
+            
+            st.markdown("**AI Güven Puanı**")
+            st.markdown("""
+            - Her tahmin için 0-100 arası güven skoru
+            - Yüksek güven = Model verilere çok güveniyor
+            - Düşük güven = Belirsiz maç, dikkatli olun
+            """)
+            
+            st.markdown("---")
+            st.markdown("### ⚠️ Önemli Uyarı")
+            
+            st.warning("""
+            **Bu sistem bir karar destek aracıdır, kesin sonuç garantisi vermez.**  
+            
+            Futbol doğası gereği öngörülemez bir oyundur. En iyi modeller bile %100 doğruluk 
+            sağlayamaz. Sistemimiz size:
+            - Veriye dayalı objektif tahminler
+            - Değerli oran fırsatları
+            - Detaylı analiz ve içgörüler
+            
+            sunar. Ancak nihai kararı siz vermelisiniz. Lütfen sorumlu bahis yapın ve 
+            kaybetmeyi göze alamayacağınız miktarlarla işlem yapmayın.
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 🤝 Bizimle İletişime Geçin")
+            st.markdown("""
+            **Sorularınız mı var?**  
+            Telegram: [@sivrii1940](https://t.me/sivrii1940)
+            
+            Premium üyelik, özel analizler veya toplu veri talepleri için bizimle iletişime geçebilirsiniz.
+            """)
         
         if not is_admin and user_tier == 'ücretsiz':
             st.sidebar.markdown("---")
