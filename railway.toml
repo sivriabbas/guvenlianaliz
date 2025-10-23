@@ -1,0 +1,13 @@
+# Railway Deployment Configuration
+# Bu dosya Railway'in projenizi nasıl deploy edeceğini belirtir
+
+[build]
+# Railway otomatik olarak requirements.txt'den bağımlılıkları kurar
+
+[deploy]
+# Uygulamayı başlatma komutu
+startCommand = "streamlit run app.py --server.port=$PORT --server.address=0.0.0.0"
+
+[env]
+# Environment variables Railway dashboard'dan ayarlanır
+# API_KEY = "your_api_key_here"
