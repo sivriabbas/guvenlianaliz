@@ -9,6 +9,13 @@ __pycache__/
 .vscode/
 .idea/
 
+# Streamlit secrets (GÜVENLİK İÇİN ÖNEMLİ!)
+.streamlit/secrets.toml
+
+# Log dosyaları
+*.log
+debug_log.txt
+
 # Uygulama Verileri ve Gizli Bilgiler (Versiyon kontrolüne eklenmemeli)
 user_usage.json
 .streamlit/secrets.toml

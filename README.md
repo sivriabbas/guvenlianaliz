@@ -101,6 +101,16 @@ Admin kullanıcılar için özel özellikler:
 - Session yönetimi
 - API limit kontrolü
 
+## 🚀 Canlı Demo
+
+**Uygulamaya buradan erişebilirsiniz:** [Futbol Analiz AI](https://futbol-analiz-ai.streamlit.app)
+
+### 🌐 Deployment
+
+Bu proje **Streamlit Community Cloud**'da barındırılmaktadır. 
+
+Kendi deploymentınızı yapmak için [`STREAMLIT_DEPLOYMENT.md`](STREAMLIT_DEPLOYMENT.md) dosyasını inceleyin.
+
 ### 📝 Lisans
 
 Bu proje özel bir projedir. Kullanım için izin gereklidir.
