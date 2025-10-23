@@ -1,0 +1,36 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to Railway
+      run: |
+        echo "Railway otomatik deploy sistemini tetikliyoruz..."
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Railway GitHub entegrasyonu deploy işlemini otomatik başlatacak."
+        
+    - name: Wait for deployment
+      run: |
+        echo "Deploy işleminin tamamlanması bekleniyor (60 saniye)..."
+        sleep 60
+        
+    - name: Verify deployment
+      run: |
+        echo "Deploy sonrası site kontrolü..."
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://www.güvenlianaliz.com)
+        if [ $response -eq 200 ]; then
+          echo "✅ Deploy başarılı! Site çalışıyor (HTTP $response)"
+        else
+          echo "⚠️  Site henüz hazır değil (HTTP $response) - Bu normal olabilir, deploy devam ediyor olabilir"
+        fi

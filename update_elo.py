@@ -22,16 +22,28 @@ def run_elo_update():
     """Elo reytinglerini güncelleyen ana fonksiyon."""
     print("Elo reyting güncelleme betiği başlatıldı...")
     
-    # API anahtarını ve URL'yi al (secrets.toml dosyasını manuel okuyarak)
-    try:
-        # Betiğin çalıştığı dizine göre secrets.toml dosyasının yolunu bul
-        secrets_path = os.path.join(os.path.dirname(__file__), '.streamlit', 'secrets.toml')
-        secrets = toml.load(secrets_path)
-        API_KEY = secrets["API_KEY"]
-        BASE_URL = "https://v3.football.api-sports.io"
-    except (FileNotFoundError, KeyError) as e:
-        print(f"Hata: API anahtarı '.streamlit/secrets.toml' dosyasından okunamadı. Dosyanın varlığından ve içinde API_KEY olduğundan emin olun. Hata: {e}")
+    # API anahtarını al (Railway environment variable veya secrets.toml)
+    API_KEY = None
+    BASE_URL = "https://v3.football.api-sports.io"
+    
+    # Önce environment variable'dan dene (Railway için)
+    API_KEY = os.environ.get('API_KEY')
+    
+    # Eğer environment variable yoksa secrets.toml'dan dene (lokal için)
+    if not API_KEY:
+        try:
+            secrets_path = os.path.join(os.path.dirname(__file__), '.streamlit', 'secrets.toml')
+            secrets = toml.load(secrets_path)
+            API_KEY = secrets["API_KEY"]
+        except (FileNotFoundError, KeyError) as e:
+            print(f"Hata: API anahtarı environment variable veya '.streamlit/secrets.toml' dosyasından okunamadı. Hata: {e}")
+            return
+    
+    if not API_KEY:
+        print("Hata: API anahtarı bulunamadı!")
         return
+        
+    print("API anahtarı başarıyla alındı.")
 
     # 🔒 Mevcut rating'leri yükle - üzerine yazma, sadece güncelle!
     ratings = elo_utils.read_ratings()

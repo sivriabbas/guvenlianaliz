@@ -1,0 +1,32 @@
+name: Daily Maintenance Tasks
+
+on:
+  schedule:
+    # Her gün UTC 02:00'da çalışır (Türkiye saati 05:00)
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Manuel tetikleme için
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Trigger Daily Reset
+      run: |
+        echo "Günlük sayaç sıfırlama ve Elo güncelleme tetikleniyor..."
+        curl -X GET "https://www.güvenlianaliz.com?action=run_tasks&secret=Elam1940*" \
+          --max-time 300 \
+          --retry 3 \
+          --retry-delay 10
+        echo "Görevler tamamlandı."
+        
+    - name: Verify Site Health
+      run: |
+        echo "Site sağlığı kontrol ediliyor..."
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://www.güvenlianaliz.com)
+        if [ $response -eq 200 ]; then
+          echo "✅ Site çalışıyor (HTTP $response)"
+        else
+          echo "❌ Site sorunu (HTTP $response)"
+          exit 1
+        fi
