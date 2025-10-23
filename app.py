@@ -128,13 +128,31 @@ st.set_page_config(
 # API KEY'i önce environment variable'dan, sonra secrets'tan al (Railway uyumluluğu için)
 import os
 try:
+    # Debug: Environment variables'ı kontrol et
+    st.write("🔍 **Debug Info:**")
+    st.write(f"- Environment variables count: {len(os.environ)}")
+    st.write(f"- API_KEY in environ: {'API_KEY' in os.environ}")
+    
     # Railway environment variables'dan al
     API_KEY = os.environ.get("API_KEY")
+    st.write(f"- API_KEY value: {API_KEY[:10] + '...' if API_KEY else 'None'}")
+    
     if not API_KEY:
         # Lokal geliştirme için secrets'tan al
-        API_KEY = st.secrets["API_KEY"]
-except (FileNotFoundError, KeyError):
-    st.error("⚠️ API_KEY bulunamadı. Railway'de environment variable olarak ayarlayın veya lokal geliştirme için `.streamlit/secrets.toml` dosyasını oluşturun.")
+        try:
+            API_KEY = st.secrets["API_KEY"]
+            st.write("✅ API_KEY secrets'tan alındı")
+        except:
+            st.write("❌ Secrets'ta da bulunamadı")
+    else:
+        st.write("✅ API_KEY environment'tan alındı")
+        
+    if not API_KEY:
+        raise ValueError("API_KEY bulunamadı")
+        
+except Exception as e:
+    st.error(f"⚠️ API_KEY hatası: {str(e)}")
+    st.error("Railway'de environment variable olarak ayarlayın veya lokal geliştirme için `.streamlit/secrets.toml` dosyasını oluşturun.")
     st.stop()
 
 BASE_URL = "https://v3.football.api-sports.io"
