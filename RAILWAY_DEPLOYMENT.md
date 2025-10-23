@@ -1,4 +1,4 @@
-# Railway Deployment Guide - Futbol Analiz AI
+# Railway Deployment Guide - Güvenilir Analiz
 
 Railway ile deployment için detaylı rehber.
 

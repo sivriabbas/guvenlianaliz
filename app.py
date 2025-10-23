@@ -117,11 +117,11 @@ def safe_rerun():
 # --- KONFİGÜRASYON ---
 st.set_page_config(
     layout="wide", 
-    page_title="⚽ Futbol Analiz AI",
+    page_title="⚽ Güvenilir Analiz",
     page_icon="⚽",
     initial_sidebar_state="expanded",
     menu_items={
-        'About': "# Futbol Analiz AI\n### Yapay Zeka Destekli Maç Tahmin Platformu"
+        'About': "# Güvenilir Analiz\n### Yapay Zeka Destekli Maç Tahmin Platformu"
     }
 )
 
@@ -1963,7 +1963,7 @@ def main():
             display_logo(sidebar=False, size="large")
             st.markdown("""
             <h1 style='text-align: center; color: #667eea; margin-top: -10px; font-size: 2.8em;'>
-                ⚽ Güvenilir Futbol Analizi
+                ⚽ Güvenilir Analiz
             </h1>
             <p style='text-align: center; color: #888; font-size: 1.2em; margin-bottom: 30px;'>
                 Yapay Zeka Destekli Profesyonel Maç Tahminleri
@@ -2164,7 +2164,7 @@ def main():
         # Branding
         st.sidebar.markdown("""
         <div style='text-align: center; margin: 10px 0 20px 0;'>
-            <p style='color: #667eea; font-weight: 600; font-size: 0.9em; margin: 0;'>⚽ Futbol Analiz AI</p>
+            <p style='color: #667eea; font-weight: 600; font-size: 0.9em; margin: 0;'>⚽ Güvenilir Analiz</p>
             <p style='color: #999; font-size: 0.75em; margin: 5px 0 0 0;'>Yapay Zeka Destekli Tahminler</p>
         </div>
         """, unsafe_allow_html=True)

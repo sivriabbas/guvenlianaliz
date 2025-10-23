@@ -1,6 +1,6 @@
 # Streamlit Cloud Deployment Guide
 
-Bu dosya, Futbol Analiz AI projesinin Streamlit Community Cloud'da nasıl yayınlanacağını açıklar.
+Bu dosya, Güvenilir Analiz projesinin Streamlit Community Cloud'da nasıl yayınlanacağını açıklar.
 
 ## 🚀 Deploy Adımları
 

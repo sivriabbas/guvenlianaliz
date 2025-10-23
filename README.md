@@ -1,10 +1,10 @@
-# ⚽ Futbol Analiz AI
+# ⚽ Güvenilir Analiz
 
 ![Logo](assets/logo.svg)
 
 ## 🎯 Proje Hakkında
 
-**Futbol Analiz AI**, yapay zeka ve gelişmiş istatistiksel modelleme teknikleri kullanarak futbol maçlarının sonuçlarını tahmin eden profesyonel bir web uygulamasıdır.
+**Güvenilir Analiz**, yapay zeka ve gelişmiş istatistiksel modelleme teknikleri kullanarak futbol maçlarının sonuçlarını tahmin eden profesyonel bir web uygulamasıdır.
 
 ### ✨ Özellikler
 
@@ -103,7 +103,7 @@ Admin kullanıcılar için özel özellikler:
 
 ## 🚀 Canlı Demo
 
-**Uygulamaya buradan erişebilirsiniz:** [Futbol Analiz AI](https://futbol-analiz-ai.streamlit.app)
+**Uygulamaya buradan erişebilirsiniz:** [Güvenilir Analiz](https://www.güvenlianaliz.com)
 
 ### 🌐 Deployment
 
@@ -129,4 +129,4 @@ Sorularınız için: sivrii1940@gmail.com
 
 ---
 
-⚽ **Futbol Analiz AI** - Yapay Zeka ile Futbolun Geleceği
+⚽ **Güvenilir Analiz** - Yapay Zeka ile Futbolun Geleceği
