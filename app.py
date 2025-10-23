@@ -124,11 +124,19 @@ st.set_page_config(
         'About': "# Futbol Analiz AI\n### Yapay Zeka Destekli Maç Tahmin Platformu"
     }
 )
+
+# API KEY'i önce environment variable'dan, sonra secrets'tan al (Railway uyumluluğu için)
+import os
 try:
-    API_KEY = st.secrets["API_KEY"]
+    # Railway environment variables'dan al
+    API_KEY = os.environ.get("API_KEY")
+    if not API_KEY:
+        # Lokal geliştirme için secrets'tan al
+        API_KEY = st.secrets["API_KEY"]
 except (FileNotFoundError, KeyError):
-    st.error("⚠️ Lütfen `.streamlit/secrets.toml` dosyasını oluşturun ve API_KEY'inizi ekleyin.")
+    st.error("⚠️ API_KEY bulunamadı. Railway'de environment variable olarak ayarlayın veya lokal geliştirme için `.streamlit/secrets.toml` dosyasını oluşturun.")
     st.stop()
+
 BASE_URL = "https://v3.football.api-sports.io"
 
 # Oturum kalıcılığı ve F5/geri tuşunda çıkış olmaması için session/cookie ayarları
