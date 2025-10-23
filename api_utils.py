@@ -776,6 +776,69 @@ def get_next_team_fixture(api_key: str, base_url: str, team_id: int) -> Tuple[Op
         return None, error
     return (response[0], None) if response else (None, "Takımın yaklaşan maçı bulunamadı.")
 
+@st.cache_data(ttl=1800)  # 30 dakika cache
+def get_team_upcoming_fixtures(api_key: str, base_url: str, team_id: int, limit: int = 5) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Takımın yaklaşan birkaç maçını getirir - daha geniş arama."""
+    try:
+        # Önce next parametresi ile dene
+        response, error = make_api_request(api_key, base_url, "fixtures", {'team': team_id, 'next': limit})
+        if not error and response:
+            return response, None
+        
+        # Next parametresi çalışmazsa tarih aralığı ile dene
+        from datetime import datetime, timedelta
+        today = datetime.now()
+        end_date = today + timedelta(days=30)  # 30 gün sonrasına kadar
+        
+        params = {
+            'team': team_id,
+            'from': today.strftime('%Y-%m-%d'),
+            'to': end_date.strftime('%Y-%m-%d'),
+            'status': 'NS'  # Not Started
+        }
+        
+        response, error = make_api_request(api_key, base_url, "fixtures", params)
+        if not error and response:
+            return response[:limit], None
+        
+        # Son çare: sadece takım ID ile arama
+        response, error = make_api_request(api_key, base_url, "fixtures", {'team': team_id})
+        if not error and response:
+            # Gelecekteki maçları filtrele
+            upcoming = [f for f in response if f.get('fixture', {}).get('status', {}).get('short') == 'NS']
+            return upcoming[:limit] if upcoming else None, None
+        
+        return None, error or "Takımın yaklaşan maçı bulunamadı."
+    
+    except Exception as e:
+        return None, f"Arama sırasında hata: {str(e)}"
+
+@st.cache_data(ttl=1800)  # 30 dakika cache  
+def search_team_fixtures_advanced(api_key: str, base_url: str, team_name: str) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Takım adından gelişmiş maç arama."""
+    try:
+        # Önce takımı bul
+        team_data = get_team_id(api_key, base_url, team_name)
+        if not team_data:
+            return None, f"'{team_name}' takımı bulunamadı."
+        
+        team_id = team_data['id']
+        
+        # Yaklaşan maçları ara
+        fixtures, error = get_team_upcoming_fixtures(api_key, base_url, team_id, limit=10)
+        if fixtures:
+            return fixtures, None
+        
+        # Hata durumunda detaylı bilgi ver
+        error_msg = f"'{team_name}' takımının yaklaşan maçı bulunamadı."
+        if error:
+            error_msg += f" API Hatası: {error}"
+        
+        return None, error_msg
+    
+    except Exception as e:
+        return None, f"Arama sırasında hata: {str(e)}"
+
 @st.cache_data(ttl=3600)  # 1 saat cache - aynı gün içinde tekrar API çağrısı yapma
 def get_fixtures_by_date(api_key: str, base_url: str, selected_league_ids: List[int], selected_date: date, bypass_limit_check: bool = False) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     all_fixtures, error_messages = [], []
@@ -1209,3 +1272,69 @@ def reset_all_monthly_counters() -> Tuple[bool, str]:
         return True, "Tüm aylık sayaçlar başarıyla sıfırlandı."
     except Exception as e:
         return False, f"Aylık sayaçlar sıfırlanırken hata oluştu: {e}"
+
+# API Enhancement Functions - Yeni İşlevler
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_api_predictions(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """API-Football'un kendi tahminlerini getirir."""
+    response, error = make_api_request(api_key, base_url, "predictions", {'fixture': fixture_id})
+    if error:
+        return None, error
+    return (response[0], None) if response else (None, "API tahmini bulunamadı.")
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_betting_odds(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Maç için bahis oranlarını getirir."""
+    response, error = make_api_request(api_key, base_url, "odds", {'fixture': fixture_id})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Bahis oranları bulunamadı.")
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_team_top_players(api_key: str, base_url: str, team_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Takımın en iyi oyuncularını getirir."""
+    response, error = make_api_request(api_key, base_url, "players", {'team': team_id, 'season': season})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Oyuncu bilgileri bulunamadı.")
+
+@st.cache_data(ttl=3600)  # 1 saat cache
+def get_fixtures_lineups(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Maç kadro dizilimlerini getirir."""
+    response, error = make_api_request(api_key, base_url, "fixtures/lineups", {'fixture': fixture_id})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Kadro bilgileri bulunamadı.")
+
+@st.cache_data(ttl=3600)  # 1 saat cache  
+def get_fixture_players_stats(api_key: str, base_url: str, fixture_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Maçtaki oyuncu performanslarını getirir."""
+    response, error = make_api_request(api_key, base_url, "fixtures/players", {'fixture': fixture_id})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Oyuncu performans bilgileri bulunamadı.")
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_team_transfers(api_key: str, base_url: str, team_id: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Takımın son transferlerini getirir."""
+    response, error = make_api_request(api_key, base_url, "transfers", {'team': team_id})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Transfer bilgileri bulunamadı.")
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_league_top_scorers(api_key: str, base_url: str, league_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Lig gol krallığı listesini getirir."""
+    response, error = make_api_request(api_key, base_url, "players/topscorers", {'league': league_id, 'season': season})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Gol krallığı bilgileri bulunamadı.")
+
+@st.cache_data(ttl=86400)  # 24 saat cache
+def get_league_top_assists(api_key: str, base_url: str, league_id: int, season: int) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """Lig asist krallığı listesini getirir."""
+    response, error = make_api_request(api_key, base_url, "players/topassists", {'league': league_id, 'season': season})
+    if error:
+        return None, error
+    return (response, None) if response else (None, "Asist krallığı bilgileri bulunamadı.")

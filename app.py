@@ -59,6 +59,7 @@ import analysis_logic
 from password_manager import change_password, change_email
 import base64
 import os
+from enhanced_analysis import display_enhanced_match_analysis
 
 
 def get_logo_base64():
@@ -1387,27 +1388,89 @@ def build_home_view(model_params):
     st.success("✨ Günün tahminleri sistem API'si ile ücretsiz olarak sunulmaktadır. Detaylı analiz yapmak için kullanıcı API hakkınız kullanılacaktır.")
     
     st.markdown("---")
-    st.subheader("🔍 Hızlı Takım Araması")
-    team_query = st.text_input("Bir sonraki maçını bulmak için takım adı girin:", placeholder="Örn: Galatasaray")
-    if st.button("Takımı Ara", use_container_width=True):
+    st.subheader("🔍 Gelişmiş Takım Araması")
+    team_query = st.text_input("Takım adı girin (yaklaşan maçları bulacağız):", placeholder="Örn: Galatasaray, Real Madrid, Barcelona")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        search_type = st.radio("Arama Tipi:", ["Hızlı Arama (1 maç)", "Detaylı Arama (Çoklu maç)"])
+    with col2:
+        max_results = st.slider("Maksimum sonuç:", 1, 10, 3) if search_type == "Detaylı Arama (Çoklu maç)" else 1
+    
+    if st.button("🔍 Takımı Ara", use_container_width=True):
         if team_query:
             with st.spinner(f"'{team_query}' takımı aranıyor..."):
                 team_data = api_utils.get_team_id(API_KEY, BASE_URL, team_query)
                 if team_data:
-                    st.success(f"✅ Takım bulundu: {team_data['name']}")
-                    with st.spinner(f"{team_data['name']} takımının bir sonraki maçı aranıyor..."):
-                        next_fixture, error = api_utils.get_next_team_fixture(API_KEY, BASE_URL, team_data['id'])
-                        if error:
-                            st.error(f"Maç aranırken hata: {error}")
-                        elif next_fixture:
-                            home_team = next_fixture['teams']['home']
-                            away_team = next_fixture['teams']['away']
-                            fixture_id = next_fixture['fixture']['id']
-                            st.info(f"📅 Maç bulundu: {home_team['name']} vs {away_team['name']}")
-                            league_id_from_fixture = next_fixture.get('league', {}).get('id')
-                            season_from_fixture = next_fixture.get('league', {}).get('season')
-                            analyze_and_display(home_team, away_team, fixture_id, model_params,
-                                              league_id=league_id_from_fixture, season=season_from_fixture)
+                    st.success(f"✅ Takım bulundu: **{team_data['name']}**")
+                    
+                    if search_type == "Hızlı Arama (1 maç)":
+                        # Eski sistem - tek maç
+                        with st.spinner(f"{team_data['name']} takımının yaklaşan maçı aranıyor..."):
+                            next_fixture, error = api_utils.get_next_team_fixture(API_KEY, BASE_URL, team_data['id'])
+                            if error:
+                                st.error(f"❌ Maç aranırken hata: {error}")
+                                # Alternatif arama dene
+                                st.info("🔄 Alternatif arama yöntemi deneniyor...")
+                                fixtures, alt_error = api_utils.get_team_upcoming_fixtures(API_KEY, BASE_URL, team_data['id'], 1)
+                                if fixtures and len(fixtures) > 0:
+                                    next_fixture = fixtures[0]
+                                    error = None
+                                    st.success("✅ Alternatif arama ile maç bulundu!")
+                            
+                            if not error and next_fixture:
+                                home_team = next_fixture['teams']['home']
+                                away_team = next_fixture['teams']['away']
+                                fixture_id = next_fixture['fixture']['id']
+                                st.info(f"📅 **Maç bulundu:** {home_team['name']} vs {away_team['name']}")
+                                league_id_from_fixture = next_fixture.get('league', {}).get('id')
+                                season_from_fixture = next_fixture.get('league', {}).get('season')
+                                analyze_and_display(home_team, away_team, fixture_id, model_params,
+                                                  league_id=league_id_from_fixture, season=season_from_fixture)
+                            else:
+                                st.error("❌ Bu takımın yaklaşan maçı bulunamadı.")
+                    
+                    else:
+                        # Yeni sistem - çoklu maç
+                        with st.spinner(f"{team_data['name']} takımının yaklaşan {max_results} maçı aranıyor..."):
+                            fixtures, error = api_utils.get_team_upcoming_fixtures(API_KEY, BASE_URL, team_data['id'], max_results)
+                            if error:
+                                st.error(f"❌ Maçlar aranırken hata: {error}")
+                            elif fixtures and len(fixtures) > 0:
+                                st.success(f"✅ **{len(fixtures)} adet yaklaşan maç bulundu!**")
+                                
+                                for idx, fixture in enumerate(fixtures, 1):
+                                    with st.expander(f"📅 Maç {idx}: {fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}", expanded=(idx==1)):
+                                        home_team = fixture['teams']['home']
+                                        away_team = fixture['teams']['away']
+                                        fixture_id = fixture['fixture']['id']
+                                        
+                                        # Maç tarihi göster
+                                        fixture_date = fixture.get('fixture', {}).get('date', '')
+                                        if fixture_date:
+                                            from datetime import datetime
+                                            try:
+                                                date_obj = datetime.fromisoformat(fixture_date.replace('Z', '+00:00'))
+                                                st.write(f"🗓️ **Tarih:** {date_obj.strftime('%d.%m.%Y %H:%M')}")
+                                            except:
+                                                st.write(f"🗓️ **Tarih:** {fixture_date}")
+                                        
+                                        league_info = fixture.get('league', {})
+                                        if league_info:
+                                            st.write(f"🏆 **Lig:** {league_info.get('name', 'Bilinmiyor')}")
+                                        
+                                        if st.button(f"🔍 Analiz Et", key=f"analyze_{fixture_id}"):
+                                            league_id_from_fixture = fixture.get('league', {}).get('id')
+                                            season_from_fixture = fixture.get('league', {}).get('season')
+                                            analyze_and_display(home_team, away_team, fixture_id, model_params,
+                                                              league_id=league_id_from_fixture, season=season_from_fixture)
+                            else:
+                                st.error(f"❌ **{team_data['name']}** takımının yaklaşan maçı bulunamadı.")
+                                st.info("💡 **İpucu:** Takım adını farklı dillerde deneyin (İngilizce, Türkçe vs.)")
+                    
+                else:
+                    st.error(f"❌ '{team_query}' takımı bulunamadı.")
+                    st.info("💡 **İpucu:** Takım adını tam olarak yazmaya çalışın veya farklı dillerde deneyin.")
                         else:
                             st.warning(f"{team_data['name']} takımının programda görünen bir sonraki maçı bulunamadı.")
                 else:
@@ -2186,7 +2249,7 @@ def main():
         # ============================================================================
         st.sidebar.markdown("### 🧭 Navigasyon")
         
-        nav_col1, nav_col2, nav_col3 = st.sidebar.columns(3)
+        nav_col1, nav_col2, nav_col3, nav_col4 = st.sidebar.columns(4)
         with nav_col1:
             if st.button("🏠", use_container_width=True, key="nav_home", help="Ana Sayfa"):
                 update_url_and_rerun('home')
@@ -2196,6 +2259,9 @@ def main():
         with nav_col3:
             if st.button("🔩", use_container_width=True, key="nav_manual", help="Manuel Analiz"):
                 update_url_and_rerun('manual')
+        with nav_col4:
+            if st.button("🔍", use_container_width=True, key="nav_enhanced", help="Gelişmiş Analiz"):
+                update_url_and_rerun('enhanced')
         
         st.sidebar.markdown("---")
         
@@ -2928,6 +2994,8 @@ def main():
             build_dashboard_view(st.session_state.model_params)
         elif st.session_state.view == 'manual': 
             build_manual_view(st.session_state.model_params)
+        elif st.session_state.view == 'enhanced':
+            display_enhanced_match_analysis(API_KEY, BASE_URL)
         elif st.session_state.view == 'codes':
             build_codes_view()
             build_codes_view()
