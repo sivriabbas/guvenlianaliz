@@ -114,6 +114,12 @@ def safe_rerun():
     except Exception:
         st.stop()
 
+def update_url_and_rerun(view_name):
+    """URL'yi günceller ve sayfayı yeniler"""
+    st.session_state.view = view_name
+    st.query_params.update({"view": view_name})
+    st.rerun()
+
 # --- KONFİGÜRASYON ---
 st.set_page_config(
     layout="wide", 
@@ -2131,7 +2137,13 @@ def main():
                 # IP kontrolünde hata olursa uygulamayı durdurma
                 print(f"IP kontrol hatası: {e}")
 
-        if 'view' not in st.session_state: st.session_state.view = 'home'
+        if 'view' not in st.session_state: 
+            # URL'den view parametresini al, yoksa 'home' yap
+            query_params = st.query_params
+            view_param = query_params.get('view', 'home')
+            # Geçerli view'lar: home, dashboard, manual, codes
+            valid_views = ['home', 'dashboard', 'manual', 'codes']
+            st.session_state.view = view_param if view_param in valid_views else 'home'
         
         # Favori ligleri config'den yükle (ilk giriş)
         if 'favorite_leagues' not in st.session_state or st.session_state.favorite_leagues is None:
@@ -2177,16 +2189,13 @@ def main():
         nav_col1, nav_col2, nav_col3 = st.sidebar.columns(3)
         with nav_col1:
             if st.button("🏠", use_container_width=True, key="nav_home", help="Ana Sayfa"):
-                st.session_state.view = 'home'
-                st.rerun()
+                update_url_and_rerun('home')
         with nav_col2:
             if st.button("🗓️", use_container_width=True, key="nav_dashboard", help="Maç Panosu"):
-                st.session_state.view = 'dashboard'
-                st.rerun()
+                update_url_and_rerun('dashboard')
         with nav_col3:
             if st.button("🔩", use_container_width=True, key="nav_manual", help="Manuel Analiz"):
-                st.session_state.view = 'manual'
-                st.rerun()
+                update_url_and_rerun('manual')
         
         st.sidebar.markdown("---")
         

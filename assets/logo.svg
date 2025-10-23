@@ -1,13 +1,76 @@
-<svg width="400" height="150" viewBox="0 0 400 150" xmlns="http://www.w3.org/2000/svg">
+<svg width="500" height="200" viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" style="stop-color:#667eea"/>
-      <stop offset="50%" style="stop-color:#764ba2"/>
+      <stop offset="30%" style="stop-color:#764ba2"/>
+      <stop offset="70%" style="stop-color:#f093fb"/>
       <stop offset="100%" style="stop-color:#667eea"/>
     </linearGradient>
+    <linearGradient id="subtitleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+    <filter id="textShadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-opacity="0.4"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <text x="200" y="70" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="url(#textGradient)" text-anchor="middle">GÜVENİLİR ANALİZ</text>
-  <text x="200" y="100" font-family="Arial, sans-serif" font-size="14" font-weight="normal" fill="#667eea" text-anchor="middle" opacity="0.8">Yapay Zeka Destekli Futbol Tahminleri</text>
-  <text x="50" y="75" font-size="24" fill="#667eea" opacity="0.6">⚽</text>
-  <text x="350" y="75" font-size="24" fill="#667eea" opacity="0.6">⚽</text>
+  
+  <!-- Background subtle pattern -->
+  <rect width="500" height="200" fill="url(#textGradient)" opacity="0.03" rx="15"/>
+  
+  <!-- Decorative top line -->
+  <line x1="50" y1="50" x2="450" y2="50" stroke="url(#textGradient)" stroke-width="4" opacity="0.7"/>
+  
+  <!-- Main Title - Bigger and more prominent -->
+  <text x="250" y="110" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="52" 
+        font-weight="900" 
+        fill="url(#textGradient)" 
+        text-anchor="middle" 
+        letter-spacing="4" 
+        filter="url(#textShadow)">
+    GÜVENİLİR ANALİZ
+  </text>
+  
+  <!-- Subtitle - More visible -->
+  <text x="250" y="145" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="18" 
+        font-weight="600" 
+        fill="url(#subtitleGradient)" 
+        text-anchor="middle" 
+        letter-spacing="2" 
+        opacity="0.9">
+    YAPAY ZEKA DESTEKLİ FUTBOL TAHMİNLERİ
+  </text>
+  
+  <!-- Decorative bottom line -->
+  <line x1="80" y1="170" x2="420" y2="170" stroke="url(#subtitleGradient)" stroke-width="3" opacity="0.5"/>
+  
+  <!-- Enhanced soccer icons -->
+  <g transform="translate(40, 110)">
+    <circle cx="0" cy="0" r="16" fill="url(#textGradient)" opacity="0.8" filter="url(#glow)"/>
+    <text x="0" y="7" font-family="Arial" font-size="20" fill="white" text-anchor="middle">⚽</text>
+  </g>
+  
+  <g transform="translate(460, 110)">
+    <circle cx="0" cy="0" r="16" fill="url(#textGradient)" opacity="0.8" filter="url(#glow)"/>
+    <text x="0" y="7" font-family="Arial" font-size="20" fill="white" text-anchor="middle">⚽</text>
+  </g>
+  
+  <!-- Professional corner decorations -->
+  <g opacity="0.6" fill="url(#textGradient)">
+    <circle cx="100" cy="35" r="3"/>
+    <circle cx="400" cy="35" r="3"/>
+    <circle cx="100" cy="185" r="3"/>
+    <circle cx="400" cy="185" r="3"/>
+  </g>
 </svg>
