@@ -1,0 +1,27 @@
+{
+  "type": "lightgbm",
+  "accuracy": 0.89,
+  "log_loss": 0.26513490528393696,
+  "train_samples": 800,
+  "test_samples": 200,
+  "trained_at": "2025-10-24T10:30:33.947073",
+  "features": [
+    "elo_diff",
+    "league_position",
+    "form",
+    "h2h",
+    "home_advantage",
+    "motivation",
+    "fatigue",
+    "recent_performance",
+    "injuries",
+    "match_importance",
+    "xg_performance",
+    "weather",
+    "referee",
+    "betting_odds",
+    "tactical_matchup",
+    "transfer_impact",
+    "squad_experience"
+  ]
+}

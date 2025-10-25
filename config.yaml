@@ -12,6 +12,11 @@ credentials:
       name: CI Test
       password: $2b$12$kfw5knkg4FmSe3FAYRdt3eImYdwwO/br/BGcAcL/cQDPJdcvctmI6
       tier: ücretsiz
+    demo_simple:
+      email: demo@demo.com
+      name: Demo Simple
+      password: $2b$12$ilOtjCovSvkVamBZZh4K.OL66B265WbDaZEx8fn9CDHTQKtqXFga2
+      tier: ücretsiz
     demo_user:
       email: demo@mail.com
       name: Demo
@@ -81,6 +86,11 @@ credentials:
       name: sivrii4152
       password: $2b$12$uiciUCIN.5hUalYwxly.u.leG1M9uXik3SxJaT/n3mDHNThxbrsRG
       tier: ücretli
+    test:
+      email: test@test.com
+      name: Test User
+      password: $2b$12$ESBRPdKPXC5f5kPBB7SqDOtH3zsLGgqb2y6d.F6tDQw6nEf9NkKJ2
+      tier: ücretsiz
     yeni_kullanici:
       email: yeni@mail.com
       name: Yeni Kullanıcı
