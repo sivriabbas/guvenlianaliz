@@ -1,0 +1,98 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>API Health Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 800px; width: 100%; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; }
+        .health-score { font-size: 5em; font-weight: bold; margin: 30px 0; color: #17a2b8; text-align: center; }
+        .status { font-size: 2em; text-align: center; color: #17a2b8; text-transform: uppercase; font-weight: bold; margin-bottom: 30px; }
+        .components { padding: 40px; }
+        .component { margin-bottom: 20px; }
+        .component-label { font-size: 1.1em; margin-bottom: 10px; color: #333; }
+        .component-bar { background: #e9ecef; height: 30px; border-radius: 15px; overflow: hidden; }
+        .component-fill { height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: width 0.5s ease; }
+        .chart-container { padding: 40px; }
+        .chart-wrapper { position: relative; height: 300px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 API Health Report</h1>
+            <p>Generated: 2025-10-24 16:04:16</p>
+        </div>
+        
+        <div class="health-score">87.5</div>
+        <div class="status">good</div>
+        
+        <div class="components">
+            <h2 style="margin-bottom: 20px;">Health Components</h2>
+
+            <div class="component">
+                <div class="component-label">Success Rate: 96.56%</div>
+                <div class="component-bar">
+                    <div class="component-fill" style="width: 96.56%"></div>
+                </div>
+            </div>
+
+            <div class="component">
+                <div class="component-label">Speed Score: 78.2%</div>
+                <div class="component-bar">
+                    <div class="component-fill" style="width: 78.2%"></div>
+                </div>
+            </div>
+
+            <div class="component">
+                <div class="component-label">Availability Score: 87.8%</div>
+                <div class="component-bar">
+                    <div class="component-fill" style="width: 87.8%"></div>
+                </div>
+            </div>
+
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="healthChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const components = {"success_rate": 96.56, "speed_score": 78.2, "availability_score": 87.8};
+        
+        new Chart(document.getElementById('healthChart'), {
+            type: 'radar',
+            data: {
+                labels: Object.keys(components).map(k => k.replace('_', ' ')),
+                datasets: [{
+                    label: 'Health Score',
+                    data: Object.values(components),
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    borderColor: 'rgb(102, 126, 234)',
+                    pointBackgroundColor: 'rgb(102, 126, 234)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(102, 126, 234)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

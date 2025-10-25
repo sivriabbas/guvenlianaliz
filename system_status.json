@@ -1,0 +1,189 @@
+{
+    "success": true,
+    "status": {
+        "timestamp": "2025-10-24T17:20:49.468159",
+        "server": "FastAPI",
+        "version": "Phase 8 - Security Active",
+        "paralel_api": true,
+        "cache_system": true,
+        "weight_system": true,
+        "ml_models": true,
+        "ensemble": true,
+        "phase7": {
+            "available": true,
+            "production": true,
+            "modules": {
+                "A_data_collection": {
+                    "historical_data_collector": true,
+                    "calculate_historical_factors": true
+                },
+                "B_model_training": {
+                    "prepare_training_data": true,
+                    "tune_xgboost": true,
+                    "tune_lightgbm": true,
+                    "evaluate_models": true
+                },
+                "C_ensemble_optimization": {
+                    "optimize_ensemble_weights": true,
+                    "compare_ensemble_methods": true
+                },
+                "D_production": {
+                    "prediction_logger": true,
+                    "result_checker": true,
+                    "performance_dashboard": true,
+                    "auto_retrain": true
+                }
+            },
+            "module_count": "12/12",
+            "completion_percent": 100.0
+        },
+        "phase8": {
+            "A_security": {
+                "available": true,
+                "features": {
+                    "rate_limiting": true,
+                    "api_key_auth": true,
+                    "cors": true,
+                    "security_headers": true
+                },
+                "rate_limits": {
+                    "global": "100/minute",
+                    "ml_predict": "20/minute",
+                    "ensemble_predict": "20/minute",
+                    "optimization": "5/minute",
+                    "retrain": "3/minute"
+                },
+                "api_keys_db": "api_keys.db"
+            },
+            "B_validation": {
+                "available": true,
+                "features": {
+                    "pydantic_models": true,
+                    "input_sanitization": true,
+                    "error_handlers": true
+                }
+            },
+            "C_monitoring": {
+                "available": true,
+                "features": {
+                    "metrics_collector": true,
+                    "structured_logging": true,
+                    "performance_tracking": true,
+                    "error_analysis": true
+                },
+                "metrics_db": "api_metrics.db",
+                "log_files": [
+                    "logs/api.log",
+                    "logs/api_errors.log",
+                    "logs/api_daily.log"
+                ]
+            },
+            "D_documentation": {
+                "available": true,
+                "features": {
+                    "auto_documentation": true,
+                    "openapi_spec": true,
+                    "postman_collection": true,
+                    "interactive_tester": true,
+                    "code_examples": true
+                },
+                "endpoints": [
+                    "/api-tester",
+                    "/api/docs/openapi",
+                    "/api/docs/postman",
+                    "/api/docs/markdown",
+                    "/api/docs/export",
+                    "/api/docs/endpoints"
+                ]
+            },
+            "E_analytics": {
+                "available": true,
+                "features": {
+                    "usage_analytics": true,
+                    "trend_analysis": true,
+                    "anomaly_detection": true,
+                    "health_score": true,
+                    "report_generation": true,
+                    "interactive_dashboard": true
+                },
+                "endpoints": [
+                    "/analytics-dashboard",
+                    "/api/analytics/usage-summary",
+                    "/api/analytics/endpoint/{path}",
+                    "/api/analytics/anomalies",
+                    "/api/analytics/trend",
+                    "/api/analytics/top-performers",
+                    "/api/analytics/compare",
+                    "/api/analytics/health-score",
+                    "/api/reports/generate",
+                    "/api/reports/list"
+                ],
+                "report_formats": [
+                    "HTML",
+                    "JSON",
+                    "CSV"
+                ]
+            },
+            "F_security": {
+                "available": true,
+                "features": {
+                    "oauth2_authorization": true,
+                    "jwt_tokens": true,
+                    "rbac": true,
+                    "api_versioning": true,
+                    "token_revocation": true,
+                    "permission_control": true
+                },
+                "endpoints": [
+                    "/api/v2/auth/register-client",
+                    "/api/v2/auth/authorize",
+                    "/api/v2/auth/token",
+                    "/api/v2/auth/refresh",
+                    "/api/v2/auth/revoke",
+                    "/api/v2/rbac/roles",
+                    "/api/v2/rbac/permissions",
+                    "/api/v2/rbac/user/{user_id}/roles",
+                    "/api/v2/rbac/assign-role",
+                    "/api/v2/versions"
+                ],
+                "api_versions": [
+                    "v1",
+                    "v2",
+                    "v3"
+                ],
+                "default_version": "v1"
+            },
+            "G_performance": {
+                "available": true,
+                "features": {
+                    "query_optimizer": true,
+                    "multi_layer_cache": true,
+                    "response_compression": true,
+                    "connection_pooling": true,
+                    "cache_warming": true,
+                    "performance_monitoring": true
+                },
+                "endpoints": [
+                    "/api/optimization/query-stats",
+                    "/api/optimization/slow-queries",
+                    "/api/optimization/index-recommendations",
+                    "/api/optimization/apply-index/{id}",
+                    "/api/optimization/cache-stats",
+                    "/api/optimization/cache-warmup",
+                    "/api/optimization/cache-clear",
+                    "/api/optimization/cache-cleanup",
+                    "/api/optimization/connection-pools",
+                    "/api/optimization/compression-stats",
+                    "/api/optimization/performance-summary"
+                ],
+                "cache_layers": [
+                    "L1: Memory (LRU)",
+                    "L2: Disk (SQLite)"
+                ],
+                "compression": "Gzip (70-90% ratio)"
+            }
+        },
+        "prediction_logging": true,
+        "database": "predictions.db"
+    }
+}

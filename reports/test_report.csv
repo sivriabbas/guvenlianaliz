@@ -1,0 +1,4 @@
+endpoint,count,avg_time
+/api/analyze,5420,156.7
+/api/match-odds,3210,189.3
+/api/system-status,2130,45.2

@@ -1,0 +1,27 @@
+{
+  "type": "xgboost",
+  "accuracy": 0.885,
+  "log_loss": 0.2739901489521568,
+  "train_samples": 800,
+  "test_samples": 200,
+  "trained_at": "2025-10-24T10:30:32.535242",
+  "features": [
+    "elo_diff",
+    "league_position",
+    "form",
+    "h2h",
+    "home_advantage",
+    "motivation",
+    "fatigue",
+    "recent_performance",
+    "injuries",
+    "match_importance",
+    "xg_performance",
+    "weather",
+    "referee",
+    "betting_odds",
+    "tactical_matchup",
+    "transfer_impact",
+    "squad_experience"
+  ]
+}

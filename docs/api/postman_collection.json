@@ -1,0 +1,1474 @@
+{
+  "info": {
+    "name": "Güvenilir Analiz API",
+    "description": "Complete API collection for football match analysis",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "guvenilir-analiz-api",
+    "version": "8.0.0"
+  },
+  "item": [
+    {
+      "name": "General",
+      "item": [
+        {
+          "name": "GET /openapi.json",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/openapi.json",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "openapi.json"
+              ]
+            },
+            "description": "openapi"
+          }
+        },
+        {
+          "name": "GET /docs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/docs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "docs"
+              ]
+            },
+            "description": "swagger_ui_html"
+          }
+        },
+        {
+          "name": "GET /docs/oauth2-redirect",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/docs/oauth2-redirect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "docs",
+                "oauth2-redirect"
+              ]
+            },
+            "description": "swagger_ui_redirect"
+          }
+        },
+        {
+          "name": "GET /redoc",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redoc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redoc"
+              ]
+            },
+            "description": "redoc_html"
+          }
+        },
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Ana sayfa - basit ve hızlı yüklenen versiyon"
+          }
+        },
+        {
+          "name": "GET /login",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "login_page"
+          }
+        },
+        {
+          "name": "POST /login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analysis",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "analysis"
+              ]
+            },
+            "description": "analysis_page"
+          }
+        },
+        {
+          "name": "GET /dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard"
+              ]
+            },
+            "description": "API-Football'dan gerçek maç verilerini göster"
+          }
+        },
+        {
+          "name": "POST /analyze",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analyze",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "analyze"
+              ]
+            },
+            "description": "🔥 ENSEMBLE ML + AI Hibrit Analiz Sistemi - Phase 4-6 Entegrasyonu",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /analyze",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analyze",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "analyze"
+              ]
+            },
+            "description": "analyze_get"
+          }
+        },
+        {
+          "name": "GET /statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/statistics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "statistics"
+              ]
+            },
+            "description": "statistics_page"
+          }
+        },
+        {
+          "name": "GET /cache-stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/cache-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "cache-stats"
+              ]
+            },
+            "description": "📊 Cache istatistikleri sayfası (Phase 4.2)"
+          }
+        },
+        {
+          "name": "GET /monitoring-dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/monitoring-dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "monitoring-dashboard"
+              ]
+            },
+            "description": "📊 Monitoring Dashboard HTML sayfası"
+          }
+        },
+        {
+          "name": "GET /api-tester",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api-tester",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api-tester"
+              ]
+            },
+            "description": "🧪 Interactive API Testing Tool"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search-Teams",
+      "item": [
+        {
+          "name": "GET /api/search-teams",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/search-teams",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "search-teams"
+              ]
+            },
+            "description": "Takım arama API"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Leagues",
+      "item": [
+        {
+          "name": "GET /api/leagues",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/leagues",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "leagues"
+              ]
+            },
+            "description": "Lig listesi API"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cache-Stats",
+      "item": [
+        {
+          "name": "GET /api/cache-stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/cache-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cache-stats"
+              ]
+            },
+            "description": "⚡ Cache istatistikleri API (Phase 4.2)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Factor-Weights",
+      "item": [
+        {
+          "name": "GET /api/factor-weights",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/factor-weights",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "factor-weights"
+              ]
+            },
+            "description": "⚖️ Faktör ağırlıkları API (Phase 4.3)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update-Weights",
+      "item": [
+        {
+          "name": "POST /api/update-weights",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/update-weights",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "update-weights"
+              ]
+            },
+            "description": "⚖️ Ağırlıkları güncelle API (Phase 4.3)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ml-Models",
+      "item": [
+        {
+          "name": "GET /api/ml-models",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ml-models",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ml-models"
+              ]
+            },
+            "description": "🤖 ML model listesi API (Phase 5)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ml-Predict",
+      "item": [
+        {
+          "name": "POST /api/ml-predict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ml-predict",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ml-predict"
+              ]
+            },
+            "description": "🤖 ML ile tahmin API (Phase 5) + Production Logging (Phase 7.D)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ensemble-Predict",
+      "item": [
+        {
+          "name": "POST /api/ensemble-predict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/ensemble-predict",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ensemble-predict"
+              ]
+            },
+            "description": "🔮 Ensemble tahmin API (Phase 6) + Production Logging (Phase 7.D)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phase7",
+      "item": [
+        {
+          "name": "GET /api/phase7/status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/phase7/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "phase7",
+                "status"
+              ]
+            },
+            "description": "📊 Phase 7 durum kontrolü"
+          }
+        },
+        {
+          "name": "POST /api/phase7/collect-data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/phase7/collect-data",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "phase7",
+                "collect-data"
+              ]
+            },
+            "description": "📥 Geçmiş maç verisi topla (Phase 7.A1)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/phase7/calculate-factors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/phase7/calculate-factors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "phase7",
+                "calculate-factors"
+              ]
+            },
+            "description": "🧮 17 faktörü hesapla (Phase 7.A2)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/phase7/prepare-dataset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/phase7/prepare-dataset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "phase7",
+                "prepare-dataset"
+              ]
+            },
+            "description": "📊 Dataset hazırla (Phase 7.B1)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/phase7/training-progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/phase7/training-progress",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "phase7",
+                "training-progress"
+              ]
+            },
+            "description": "📈 Model eğitim ilerlemesi"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Optimize-Ensemble-Weights",
+      "item": [
+        {
+          "name": "POST /api/optimize-ensemble-weights",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/optimize-ensemble-weights",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "optimize-ensemble-weights"
+              ]
+            },
+            "description": "⚖️ Ensemble ağırlıklarını optimize et",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Compare-Ensemble-Methods",
+      "item": [
+        {
+          "name": "POST /api/compare-ensemble-methods",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/compare-ensemble-methods",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "compare-ensemble-methods"
+              ]
+            },
+            "description": "🎯 Ensemble metodlarını karşılaştır",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prediction-Stats",
+      "item": [
+        {
+          "name": "GET /api/prediction-stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/prediction-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "prediction-stats"
+              ]
+            },
+            "description": "📊 Tahmin istatistikleri"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recent-Predictions",
+      "item": [
+        {
+          "name": "GET /api/recent-predictions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/recent-predictions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "recent-predictions"
+              ]
+            },
+            "description": "📋 Son tahminler"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check-Results",
+      "item": [
+        {
+          "name": "POST /api/check-results",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/check-results",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "check-results"
+              ]
+            },
+            "description": "🔍 Sonuçları kontrol et",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auto-Retrain",
+      "item": [
+        {
+          "name": "POST /api/auto-retrain",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auto-retrain",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auto-retrain"
+              ]
+            },
+            "description": "🔧 Otomatik re-training tetikle",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "System-Status",
+      "item": [
+        {
+          "name": "GET /api/system-status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/system-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "system-status"
+              ]
+            },
+            "description": "🎯 Sistem durumu (tüm phase'ler)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Security",
+      "item": [
+        {
+          "name": "POST /api/security/create-key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/security/create-key",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "security",
+                "create-key"
+              ]
+            },
+            "description": "🔑 Yeni API key oluştur (Admin yetkisi gerekli)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/security/key-stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/security/key-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "security",
+                "key-stats"
+              ]
+            },
+            "description": "📊 API key istatistikleri"
+          }
+        },
+        {
+          "name": "POST /api/security/deactivate-key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/security/deactivate-key",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "security",
+                "deactivate-key"
+              ]
+            },
+            "description": "🔒 API key'i deaktif et (Admin yetkisi gerekli)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/security/rate-limit-status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/security/rate-limit-status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "security",
+                "rate-limit-status"
+              ]
+            },
+            "description": "⏱️ Mevcut rate limit durumu"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Premium",
+      "item": [
+        {
+          "name": "GET /api/premium/advanced-analysis",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/premium/advanced-analysis",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "premium",
+                "advanced-analysis"
+              ]
+            },
+            "description": "💎 Premium analiz endpoint'i (API key + premium yetki gerekli)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "item": [
+        {
+          "name": "GET /api/metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics"
+              ]
+            },
+            "description": "📊 Genel API metriklerini getir"
+          }
+        },
+        {
+          "name": "GET /api/metrics/endpoint/{endpoint_path:path}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics/endpoint/{endpoint_path:path}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "endpoint",
+                "{endpoint_path:path}"
+              ]
+            },
+            "description": "📍 Belirli bir endpoint için metrikleri getir"
+          }
+        },
+        {
+          "name": "GET /api/metrics/historical",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics/historical",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "historical"
+              ]
+            },
+            "description": "📈 Geçmiş metrikleri getir"
+          }
+        },
+        {
+          "name": "GET /api/metrics/slow",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics/slow",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "slow"
+              ]
+            },
+            "description": "🐌 Yavaş endpoint'leri getir"
+          }
+        },
+        {
+          "name": "GET /api/metrics/errors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics/errors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "errors"
+              ]
+            },
+            "description": "⚠️ Hata analizini getir"
+          }
+        },
+        {
+          "name": "POST /api/metrics/reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics/reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "reset"
+              ]
+            },
+            "description": "🔄 In-memory metrikleri sıfırla (sadece admin)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/metrics/export",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/metrics/export",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "export"
+              ]
+            },
+            "description": "💾 Metrikleri JSON dosyasına export et"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logs",
+      "item": [
+        {
+          "name": "GET /api/logs/errors",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/logs/errors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logs",
+                "errors"
+              ]
+            },
+            "description": "📋 Log dosyasından hata özetini getir"
+          }
+        },
+        {
+          "name": "GET /api/logs/performance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/logs/performance",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "logs",
+                "performance"
+              ]
+            },
+            "description": "⚡ Log dosyasından performans metriklerini getir"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Docs",
+      "item": [
+        {
+          "name": "GET /api/docs/openapi",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/docs/openapi",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "openapi"
+              ]
+            },
+            "description": "📄 OpenAPI 3.0 Specification"
+          }
+        },
+        {
+          "name": "GET /api/docs/postman",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/docs/postman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "postman"
+              ]
+            },
+            "description": "📮 Postman Collection v2.1"
+          }
+        },
+        {
+          "name": "GET /api/docs/markdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/docs/markdown",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "markdown"
+              ]
+            },
+            "description": "📝 Markdown Documentation"
+          }
+        },
+        {
+          "name": "POST /api/docs/export",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/docs/export",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "export"
+              ]
+            },
+            "description": "💾 Export All Documentation",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"value\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/docs/endpoints",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/docs/endpoints",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "endpoints"
+              ]
+            },
+            "description": "📍 List All API Endpoints"
+          }
+        },
+        {
+          "name": "GET /api/docs/examples/{endpoint_path:path}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/docs/examples/{endpoint_path:path}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "docs",
+                "examples",
+                "{endpoint_path:path}"
+              ]
+            },
+            "description": "💡 Get Code Examples for Endpoint"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8003",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "your_api_key_here",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "period": "24h",
+  "total_requests": 15420,
+  "success_count": 14890,
+  "error_count": 530,
+  "success_rate": 96.56,
+  "error_rate": 3.44,
+  "avg_response_time": 145.7,
+  "max_response_time": 892.3,
+  "min_response_time": 23.1,
+  "percentiles": {
+    "p50": 112.5,
+    "p75": 189.3,
+    "p90": 298.7,
+    "p95": 412.9,
+    "p99": 678.4
+  },
+  "top_endpoints": [
+    {
+      "endpoint": "/api/analyze",
+      "count": 5420
+    },
+    {
+      "endpoint": "/api/match-odds",
+      "count": 3210
+    },
+    {
+      "endpoint": "/api/system-status",
+      "count": 2130
+    },
+    {
+      "endpoint": "/api/leagues",
+      "count": 1890
+    },
+    {
+      "endpoint": "/api/cache-stats",
+      "count": 1560
+    }
+  ]
+}

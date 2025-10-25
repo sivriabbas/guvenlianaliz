@@ -1,4 +1,11 @@
-import streamlit as st
+# Streamlit compatibility check
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    print("⚠️ Warning: Streamlit not available. Some features may not work.")
+    
 from datetime import datetime, date, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 import time

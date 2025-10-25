@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card-title {
+            font-size: 1.2em;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .chart-container {
+            height: 200px;
+            margin-top: 15px;
+            position: relative;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 10px;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+        }
+
+        .auto-refresh {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .icon {
+            font-size: 1.5em;
+        }
+
+        .endpoint-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .endpoint-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .endpoint-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success-rate-high { color: #28a745; }
+        .success-rate-medium { color: #ffc107; }
+        .success-rate-low { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 API Monitoring Dashboard</h1>
+            <p class="subtitle">Real-time API performans izleme ve analitik</p>
+            <div style="margin-top: 15px;">
+                <button class="refresh-btn" onclick="loadMetrics()">🔄 Yenile</button>
+                <span class="auto-refresh">Otomatik yenileme: <span id="countdown">30</span>s</span>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- Genel İstatistikler -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">🎯</span>
+                    Toplam İstekler
+                </div>
+                <div class="metric-value" id="total-requests">-</div>
+                <div class="metric-label">Son 24 saat</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">⚡</span>
+                    Ortalama Yanıt Süresi
+                </div>
+                <div class="metric-value" id="avg-response">-</div>
+                <div class="metric-label">milisaniye</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">✅</span>
+                    Başarı Oranı
+                </div>
+                <div class="metric-value" id="success-rate">-</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="success-progress" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">⚠️</span>
+                    Toplam Hatalar
+                </div>
+                <div class="metric-value" id="total-errors">-</div>
+                <div class="metric-label">HTTP 4xx/5xx</div>
+            </div>
+        </div>
+
+        <!-- API Durumu -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-title">
+                <span class="icon">🔌</span>
+                API Durumu
+            </div>
+            <div id="api-status">
+                <div class="loading">Veriler yükleniyor...</div>
+            </div>
+        </div>
+
+        <!-- Endpoint İstatistikleri -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-title">
+                <span class="icon">📍</span>
+                Endpoint İstatistikleri
+            </div>
+            <div id="endpoint-stats">
+                <div class="loading">Veriler yükleniyor...</div>
+            </div>
+        </div>
+
+        <!-- Yavaş Endpoint'ler -->
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-title">
+                <span class="icon">🐌</span>
+                Yavaş Endpoint'ler
+            </div>
+            <div id="slow-endpoints">
+                <div class="loading">Veriler yükleniyor...</div>
+            </div>
+        </div>
+
+        <!-- Hata Analizi -->
+        <div class="card">
+            <div class="card-title">
+                <span class="icon">🔍</span>
+                Hata Analizi
+            </div>
+            <div id="error-analysis">
+                <div class="loading">Veriler yükleniyor...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let countdownTimer = 30;
+        let autoRefreshInterval;
+
+        // API URL'i - ortamınıza göre değiştirin
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://127.0.0.1:8003'
+            : '';
+
+        // Metrikleri yükle
+        async function loadMetrics() {
+            try {
+                // Genel metrikler
+                const response = await fetch(`${API_BASE}/api/metrics`);
+                if (!response.ok) throw new Error('API yanıt vermedi');
+                
+                const data = await response.json();
+                updateDashboard(data);
+
+                // Yavaş endpoint'ler
+                const slowResponse = await fetch(`${API_BASE}/api/metrics/slow`);
+                if (slowResponse.ok) {
+                    const slowData = await slowResponse.json();
+                    updateSlowEndpoints(slowData);
+                }
+
+                // Hata analizi
+                const errorResponse = await fetch(`${API_BASE}/api/metrics/errors`);
+                if (errorResponse.ok) {
+                    const errorData = await errorResponse.json();
+                    updateErrorAnalysis(errorData);
+                }
+
+                resetCountdown();
+            } catch (error) {
+                console.error('Metrics yükleme hatası:', error);
+                showError('API bağlantısı kurulamadı. Sunucu çalışıyor mu?');
+            }
+        }
+
+        // Dashboard'u güncelle
+        function updateDashboard(data) {
+            if (!data.summary) return;
+
+            const summary = data.summary;
+            
+            // Genel istatistikler
+            document.getElementById('total-requests').textContent = summary.total_requests.toLocaleString();
+            document.getElementById('avg-response').textContent = 
+                (summary.avg_response_time * 1000).toFixed(1) + 'ms';
+            document.getElementById('success-rate').textContent = summary.success_rate.toFixed(1) + '%';
+            document.getElementById('total-errors').textContent = summary.total_errors.toLocaleString();
+            
+            // Progress bar
+            document.getElementById('success-progress').style.width = summary.success_rate + '%';
+
+            // API Durumu
+            const uptime = formatUptime(summary.uptime_seconds);
+            const statusClass = summary.success_rate > 95 ? 'status-success' : 
+                              summary.success_rate > 80 ? 'status-warning' : 'status-error';
+            
+            document.getElementById('api-status').innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span class="status-badge ${statusClass}">
+                            ${summary.success_rate > 95 ? '🟢 Sağlıklı' : 
+                              summary.success_rate > 80 ? '🟡 Uyarı' : '🔴 Sorunlu'}
+                        </span>
+                        <div style="margin-top: 10px; color: #666;">
+                            Çalışma süresi: ${uptime}
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.9em; color: #666;">Status Codes</div>
+                        <div style="margin-top: 5px;">
+                            ${Object.entries(data.status_codes || {})
+                                .map(([code, count]) => `<span style="margin: 0 5px;">${code}: ${count}</span>`)
+                                .join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Endpoint istatistikleri
+            if (data.endpoints) {
+                const endpointsHtml = Object.entries(data.endpoints)
+                    .sort((a, b) => b[1].request_count - a[1].request_count)
+                    .map(([endpoint, stats]) => {
+                        const rateClass = stats.success_rate > 95 ? 'success-rate-high' :
+                                        stats.success_rate > 80 ? 'success-rate-medium' : 'success-rate-low';
+                        
+                        return `
+                            <div class="endpoint-row">
+                                <div class="endpoint-name">${endpoint}</div>
+                                <div class="endpoint-stats">
+                                    <span>📊 ${stats.request_count}</span>
+                                    <span>⚡ ${(stats.avg_response_time * 1000).toFixed(1)}ms</span>
+                                    <span class="${rateClass}">✅ ${stats.success_rate.toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                
+                document.getElementById('endpoint-stats').innerHTML = endpointsHtml || '<p>Henüz veri yok</p>';
+            }
+        }
+
+        // Yavaş endpoint'leri güncelle
+        function updateSlowEndpoints(data) {
+            if (!data.slow_endpoints || data.slow_endpoints.length === 0) {
+                document.getElementById('slow-endpoints').innerHTML = '<p style="color: #28a745;">✅ Tüm endpoint\'ler hızlı çalışıyor!</p>';
+                return;
+            }
+
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>İstek Sayısı</th>
+                            <th>Ort. Süre</th>
+                            <th>Max Süre</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.slow_endpoints.map(ep => `
+                            <tr>
+                                <td>${ep.endpoint}</td>
+                                <td>${ep.request_count}</td>
+                                <td style="color: #ffc107; font-weight: bold;">${ep.avg_time_ms}ms</td>
+                                <td style="color: #dc3545; font-weight: bold;">${ep.max_time_ms}ms</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('slow-endpoints').innerHTML = html;
+        }
+
+        // Hata analizini güncelle
+        function updateErrorAnalysis(data) {
+            if (!data.errors || data.errors.length === 0) {
+                document.getElementById('error-analysis').innerHTML = '<p style="color: #28a745;">✅ Son 24 saatte hata yok!</p>';
+                return;
+            }
+
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Endpoint</th>
+                            <th>Status</th>
+                            <th>Sayı</th>
+                            <th>Hata Mesajı</th>
+                            <th>Son Görülme</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.errors.map(err => `
+                            <tr>
+                                <td>${err.endpoint}</td>
+                                <td><span class="status-badge status-error">${err.status_code}</span></td>
+                                <td>${err.count}</td>
+                                <td>${err.error_message || '-'}</td>
+                                <td>${new Date(err.last_seen).toLocaleString('tr-TR')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('error-analysis').innerHTML = html;
+        }
+
+        // Uptime formatlama
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) return `${days}g ${hours}s`;
+            if (hours > 0) return `${hours}s ${minutes}dk`;
+            return `${minutes}dk`;
+        }
+
+        // Hata göster
+        function showError(message) {
+            const errorHtml = `<div class="error-message">${message}</div>`;
+            document.getElementById('api-status').innerHTML = errorHtml;
+        }
+
+        // Geri sayım sıfırla
+        function resetCountdown() {
+            countdownTimer = 30;
+        }
+
+        // Geri sayım güncelle
+        function updateCountdown() {
+            countdownTimer--;
+            document.getElementById('countdown').textContent = countdownTimer;
+            
+            if (countdownTimer <= 0) {
+                loadMetrics();
+            }
+        }
+
+        // Sayfa yüklendiğinde başlat
+        window.addEventListener('load', () => {
+            loadMetrics();
+            autoRefreshInterval = setInterval(updateCountdown, 1000);
+        });
+    </script>
+</body>
+</html>

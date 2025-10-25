@@ -13,7 +13,24 @@ import api_utils
 import analysis_logic
 import elo_utils
 
-app = FastAPI(title="Güvenilir Analiz", description="Futbol Analiz Platformu")
+# Phase 9 ML API
+try:
+    from ml_api import router as ml_router
+    ML_API_AVAILABLE = True
+except ImportError:
+    ML_API_AVAILABLE = False
+    print("Warning: ML API not available")
+
+app = FastAPI(
+    title="Güvenilir Analiz",
+    description="Futbol Analiz Platformu - Advanced ML & AI Powered",
+    version="9.0.0"
+)
+
+# Include ML router
+if ML_API_AVAILABLE:
+    app.include_router(ml_router)
+    print("✅ Phase 9 ML API endpoints loaded")
 
 # Static files ve templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -27,8 +44,9 @@ sessions = {}
 
 def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
     """Kullanıcı authentication"""
-    # Mevcut config.yaml sisteminizi kullanın
     import yaml
+    import bcrypt
+    
     try:
         with open('config.yaml', 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
@@ -36,15 +54,25 @@ def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
         users = config.get('credentials', {}).get('usernames', {})
         user = users.get(credentials.username)
         
-        if user and user.get('password') == credentials.password:
-            return credentials.username
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Basic"},
-            )
-    except Exception:
+        if user:
+            # Hash'li şifreyi kontrol et
+            stored_password = user.get('password', '')
+            if stored_password.startswith('$2b$'):
+                # bcrypt hash'li şifre
+                if bcrypt.checkpw(credentials.password.encode('utf-8'), stored_password.encode('utf-8')):
+                    return credentials.username
+            else:
+                # Plaintext şifre (fallback)
+                if stored_password == credentials.password:
+                    return credentials.username
+        
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    except Exception as e:
+        print(f"Auth error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
